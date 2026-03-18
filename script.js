@@ -1013,6 +1013,255 @@ document.addEventListener('click', e => {
   }
 });
 
+// ── VECTOR SVG BUILDER ────────────────────────────────────
+// Generates a true-vector SVG where each poster element (text, rect, circle)
+// is an individual SVG node — editable in Adobe Illustrator per-element.
+// Map canvas and elevation chart remain raster <image> nodes (unavoidable).
+async function buildVectorSVG(dpi) {
+  const poster = document.getElementById('poster');
+  const posterRect = poster.getBoundingClientRect();
+
+  // Target SVG dimensions in pixels at the chosen DPI
+  const paperDims = PAPER_SIZES_MM[selectedPaperSize];
+  const pxPerMm   = dpi / 25.4;
+  const svgW      = Math.round(paperDims.wMm * pxPerMm);
+  const svgH      = Math.round(paperDims.hMm * pxPerMm);
+
+  // Scale from DOM pixels to SVG pixels
+  const scaleX = svgW / posterRect.width;
+  const scaleY = svgH / posterRect.height;
+
+  // Element rect → SVG coordinate object
+  function sr(el) {
+    const r = el.getBoundingClientRect();
+    const x = (r.left - posterRect.left) * scaleX;
+    const y = (r.top  - posterRect.top)  * scaleY;
+    const w = r.width  * scaleX;
+    const h = r.height * scaleY;
+    return { x, y, w, h, cx: x + w / 2, cy: y + h / 2, r2: x + w, b: y + h };
+  }
+
+  // Escape special XML chars
+  function esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // rgb(r,g,b) or rgba(r,g,b,a) → #rrggbb
+  function toHex(rgb) {
+    const m = (rgb || '').match(/\d+/g);
+    if (!m || m.length < 3) return 'none';
+    return '#' + [m[0],m[1],m[2]].map(v => (+v).toString(16).padStart(2,'0')).join('');
+  }
+
+  // Apply CSS text-transform to actual string content
+  function applyTT(text, tt) {
+    if (tt === 'uppercase')  return text.toUpperCase();
+    if (tt === 'lowercase')  return text.toLowerCase();
+    if (tt === 'capitalize') return text.replace(/\b\w/g, c => c.toUpperCase());
+    return text;
+  }
+
+  // Produce a <text> SVG element from a DOM element's computed styles.
+  // Illustrator does not honour dominant-baseline="central", so we compute
+  // the alphabetic baseline manually: y = box_center + 0.35 * font_size.
+  // This places the visual text center at the element's bounding-box centre.
+  function textEl(el, opts = {}) {
+    const r  = sr(el);
+    const cs = getComputedStyle(el);
+    const fs = parseFloat(cs.fontSize) * scaleY;
+    const ls = cs.letterSpacing === 'normal' ? 0 : parseFloat(cs.letterSpacing) * scaleX;
+    const ta = opts.anchor || (cs.textAlign === 'center' ? 'middle' : cs.textAlign === 'right' ? 'end' : 'start');
+    const tx = ta === 'middle' ? r.cx : ta === 'end' ? r.r2 : r.x;
+    // Baseline offset so visual centre aligns with box centre (no dominant-baseline needed)
+    const ty = r.cy + fs * 0.35;
+    const content = applyTT((opts.text !== undefined ? opts.text : el.textContent).trim(), cs.textTransform);
+    const fw = cs.fontWeight;
+    const fi = cs.fontStyle !== 'normal' ? ` font-style="${cs.fontStyle}"` : '';
+    return `<text x="${tx.toFixed(2)}" y="${ty.toFixed(2)}" text-anchor="${ta}" font-size="${fs.toFixed(2)}" font-family="${esc(cs.fontFamily)}" font-weight="${fw}"${fi} fill="${toHex(cs.color)}" letter-spacing="${ls.toFixed(2)}">${esc(content)}</text>`;
+  }
+
+  // Extract a Lucide <svg> icon as a positioned <g> of vector paths.
+  // Resolves currentColor against the parent element's computed color.
+  function svgIconAt(iconSvgEl, colorHex) {
+    if (!iconSvgEl) return '';
+    const ir = sr(iconSvgEl);
+    const vb = iconSvgEl.viewBox && iconSvgEl.viewBox.baseVal;
+    if (!vb || !vb.width || !vb.height) return '';
+    const scX = ir.w / vb.width;
+    const scY = ir.h / vb.height;
+    let inner = '';
+    iconSvgEl.querySelectorAll('*').forEach(child => {
+      const tag = child.tagName.toLowerCase();
+      const attrs = Array.from(child.attributes).map(a => {
+        let val = a.value;
+        if (val === 'currentColor') val = colorHex;
+        return `${a.name}="${esc(val)}"`;
+      }).join(' ');
+      inner += `<${tag} ${attrs}/>`;
+    });
+    return `<g transform="translate(${ir.x.toFixed(2)},${ir.y.toFixed(2)}) scale(${scX.toFixed(6)},${scY.toFixed(6)})">${inner}</g>`;
+  }
+
+  // Canvas element → chunked base64 (76-char lines for Illustrator compatibility)
+  function canvasB64(canvas) {
+    const raw = canvas.toDataURL('image/png').split(',')[1];
+    return raw.match(/.{1,76}/g).join('\n');
+  }
+
+  const parts = [];
+
+  // ── 1. Poster background ──────────────────────────────────
+  const bgHex = toHex(getComputedStyle(poster).backgroundColor) || '#ffffff';
+  parts.push(`<rect x="0" y="0" width="${svgW}" height="${svgH}" fill="${bgHex}"/>`);
+
+  // ── 2. Title & Subtitle ───────────────────────────────────
+  const titleEl = document.getElementById('poster-title');
+  if (titleEl) parts.push(textEl(titleEl, { anchor: 'middle' }));
+
+  const subtitleEl = document.getElementById('poster-subtitle');
+  if (subtitleEl) parts.push(textEl(subtitleEl, { anchor: 'middle' }));
+
+  // ── 3. Map as raster image ────────────────────────────────
+  // No <clipPath> — Illustrator warns "Clipping will be lost on roundtrip to Tiny"
+  // for any clipPath element; markers sitting slightly outside the map edge is acceptable.
+  const posterMapEl = document.getElementById('poster-map');
+  if (posterMapEl) {
+    const mr = sr(posterMapEl);
+    const mapB64 = canvasB64(map.getCanvas());
+    parts.push(`<image x="${mr.x.toFixed(2)}" y="${mr.y.toFixed(2)}" width="${mr.w.toFixed(2)}" height="${mr.h.toFixed(2)}" xlink:href="data:image/png;base64,${mapB64}">\n</image>`);
+  }
+
+  // ── 4. Map markers as vector circles ─────────────────────
+  if (state.showMarkers) {
+    document.querySelectorAll('.mapboxgl-marker').forEach(mel => {
+      const mr  = mel.getBoundingClientRect();
+      const mcx = (mr.left - posterRect.left + mr.width  / 2) * scaleX;
+      const mcy = (mr.top  - posterRect.top  + mr.height / 2) * scaleY;
+      const rad = (mr.width / 2) * scaleX;
+      const bw  = parseFloat(getComputedStyle(mel).borderLeftWidth || '0') * scaleX;
+      const fill = toHex(getComputedStyle(mel).backgroundColor);
+      parts.push(`<circle cx="${mcx.toFixed(2)}" cy="${mcy.toFixed(2)}" r="${rad.toFixed(2)}" fill="${fill}" stroke="#ffffff" stroke-width="${(bw||1).toFixed(2)}"/>`);
+    });
+  }
+
+  // ── 5. Elevation chart as raster image ────────────────────
+  if (state.showElevation) {
+    const elevContainer = document.getElementById('elevation-container');
+    if (elevContainer && getComputedStyle(elevContainer).display !== 'none') {
+      const er = sr(elevContainer);
+      const chartCanvas = document.getElementById('elevation-chart');
+      const elevB64 = canvasB64(chartCanvas);
+      parts.push(`<image x="${er.x.toFixed(2)}" y="${er.y.toFixed(2)}" width="${er.w.toFixed(2)}" height="${er.h.toFixed(2)}" xlink:href="data:image/png;base64,${elevB64}">\n</image>`);
+    }
+  }
+
+  // ── 6. Legend row ─────────────────────────────────────────
+  const legendEl = document.querySelector('.poster-legend');
+  if (legendEl && getComputedStyle(legendEl).display !== 'none') {
+    // Start dot
+    const startDot = legendEl.querySelector('.legend-dot-start');
+    if (startDot) {
+      const dr = sr(startDot);
+      parts.push(`<circle cx="${dr.cx.toFixed(2)}" cy="${dr.cy.toFixed(2)}" r="${(dr.w/2).toFixed(2)}" fill="#27ae60"/>`);
+    }
+    // End dot
+    const endDot = legendEl.querySelector('.legend-dot-end');
+    if (endDot) {
+      const dr  = sr(endDot);
+      const col = toHex(getComputedStyle(endDot).backgroundColor);
+      parts.push(`<circle cx="${dr.cx.toFixed(2)}" cy="${dr.cy.toFixed(2)}" r="${(dr.w/2).toFixed(2)}" fill="${col}"/>`);
+    }
+    // Legend text labels ("Start", "End") — positioned after each dot
+    legendEl.querySelectorAll('.legend-item').forEach(item => {
+      const dotChild = item.querySelector('.legend-dot');
+      const textStr  = Array.from(item.childNodes)
+        .filter(n => n.nodeType === Node.TEXT_NODE)
+        .map(n => n.textContent.trim()).join('');
+      if (!textStr) return;
+      const ir  = sr(item);
+      const cs  = getComputedStyle(item);
+      const fs  = parseFloat(cs.fontSize) * scaleY;
+      const ls  = cs.letterSpacing === 'normal' ? 0 : parseFloat(cs.letterSpacing) * scaleX;
+      const col = toHex(cs.color);
+      // x = right edge of dot + gap; y = baseline from item centre
+      const dotR  = dotChild ? sr(dotChild) : { r2: ir.x };
+      const gap   = parseFloat(cs.gap || cs.columnGap || '4') * scaleX;
+      const textX = dotR.r2 + gap;
+      const ty    = ir.cy + fs * 0.35;
+      const content = applyTT(textStr, cs.textTransform);
+      parts.push(`<text x="${textX.toFixed(2)}" y="${ty.toFixed(2)}" text-anchor="start" font-size="${fs.toFixed(2)}" font-family="${esc(cs.fontFamily)}" font-weight="${cs.fontWeight}" fill="${col}" letter-spacing="${ls.toFixed(2)}">${esc(content)}</text>`);
+    });
+  }
+
+  // ── 7. Stats border box + divider ────────────────────────
+  const statsEl = document.querySelector('.poster-stats');
+  if (statsEl) {
+    const str  = sr(statsEl);
+    const stcs = getComputedStyle(statsEl);
+    const bw   = parseFloat(stcs.borderTopWidth) * Math.min(scaleX, scaleY);
+    const bc   = toHex(stcs.borderTopColor);
+    // Individual stat cell backgrounds (may differ from poster bg)
+    statsEl.querySelectorAll('.poster-stat').forEach(cell => {
+      const cr  = sr(cell);
+      const cbg = toHex(getComputedStyle(cell).backgroundColor);
+      if (cbg && cbg !== 'none') parts.push(`<rect x="${cr.x.toFixed(2)}" y="${cr.y.toFixed(2)}" width="${cr.w.toFixed(2)}" height="${cr.h.toFixed(2)}" fill="${cbg}"/>`);
+    });
+    // Outer border
+    parts.push(`<rect x="${str.x.toFixed(2)}" y="${str.y.toFixed(2)}" width="${str.w.toFixed(2)}" height="${str.h.toFixed(2)}" fill="none" stroke="${bc}" stroke-width="${bw.toFixed(2)}"/>`);
+    // Divider
+    const dividerEl = statsEl.querySelector('.stat-divider');
+    if (dividerEl) {
+      const dr   = sr(dividerEl);
+      const dcol = toHex(getComputedStyle(dividerEl).backgroundColor);
+      parts.push(`<rect x="${dr.x.toFixed(2)}" y="${dr.y.toFixed(2)}" width="${Math.max(1, dr.w).toFixed(2)}" height="${dr.h.toFixed(2)}" fill="${dcol}"/>`);
+    }
+    // Stat text elements (label / value / unit × 2 stats)
+    ['stat-dist-label','stat-dist-value','stat-dist-unit',
+     'stat-elev-label','stat-elev-value','stat-elev-unit'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) parts.push(textEl(el, { anchor: 'middle' }));
+    });
+  }
+
+  // ── 8. Footer brand (icon + text) ─────────────────────────
+  if (state.showBrand) {
+    const brandEl = document.querySelector('.poster-footer-brand');
+    if (brandEl && getComputedStyle(brandEl).display !== 'none') {
+      const brandCs  = getComputedStyle(brandEl);
+      const brandCol = toHex(brandCs.color);
+      // Icon: extract Lucide SVG as vector paths
+      const iconSvg = brandEl.querySelector('svg');
+      if (iconSvg) parts.push(svgIconAt(iconSvg, brandCol));
+      // Text: use Range to get the text node's exact bounding rect
+      const textNode = Array.from(brandEl.childNodes).find(n => n.nodeType === Node.TEXT_NODE && n.textContent.trim());
+      if (textNode) {
+        const range = document.createRange();
+        range.selectNodeContents(textNode);
+        const tr = range.getBoundingClientRect();
+        const x  = (tr.left - posterRect.left) * scaleX;
+        const cy = (tr.top  - posterRect.top  + tr.height / 2) * scaleY;
+        const fs = parseFloat(brandCs.fontSize) * scaleY;
+        const ls = brandCs.letterSpacing === 'normal' ? 0 : parseFloat(brandCs.letterSpacing) * scaleX;
+        const ty = cy + fs * 0.35;
+        const fw = brandCs.fontWeight;
+        const content = applyTT(textNode.textContent.trim(), brandCs.textTransform);
+        parts.push(`<text x="${x.toFixed(2)}" y="${ty.toFixed(2)}" text-anchor="start" font-size="${fs.toFixed(2)}" font-family="${esc(brandCs.fontFamily)}" font-weight="${fw}" fill="${brandCol}" letter-spacing="${ls.toFixed(2)}">${esc(content)}</text>`);
+      }
+    }
+  }
+
+  // ── Assemble SVG ──────────────────────────────────────────
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+     x="0px" y="0px" width="${svgW}px" height="${svgH}px"
+     viewBox="0 0 ${svgW} ${svgH}"
+     style="enable-background:new 0 0 ${svgW} ${svgH};"
+     xml:space="preserve">
+${parts.join('\n')}
+</svg>`;
+}
+
 async function exportAs(format) {
   // Close the menu
   exportMenuOpen = false;
@@ -1071,15 +1320,13 @@ async function exportAs(format) {
       finalCanvas.getContext('2d').drawImage(rawCanvas, 0, 0, targetW, targetH);
     }
 
-    // SVG: wrap the raster capture in an SVG container
+    // SVG: build a true-vector SVG (each text/rect/circle is a separate node).
+    // Bypasses the html2canvas raster capture — vector is built directly from DOM.
     if (format === 'svg') {
-      const rasterUrl = finalCanvas.toDataURL('image/png', 0.92);
-      const svgW = finalCanvas.width;
-      const svgH = finalCanvas.height;
-      const svgMarkup = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}"><image href="${rasterUrl}" width="${svgW}" height="${svgH}"/></svg>`;
-      const blob = new Blob([svgMarkup], { type: 'image/svg+xml' });
+      const svgMarkup = await buildVectorSVG(dpi);
+      const blob   = new Blob([svgMarkup], { type: 'image/svg+xml;charset=utf-8' });
       const svgUrl = URL.createObjectURL(blob);
-      const link = document.createElement('a');
+      const link   = document.createElement('a');
       link.download = `framed-trails-${selectedPaperSize}-${dpi}dpi-${Date.now()}.svg`;
       link.href = svgUrl;
       link.click();
