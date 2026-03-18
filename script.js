@@ -1150,14 +1150,94 @@ async function buildVectorSVG(dpi) {
     });
   }
 
-  // ── 5. Elevation chart as raster image ────────────────────
+  // ── 5. Elevation chart as pure vector SVG ────────────────
+  // Builds the elevation profile directly from Chart.js scale/data — no raster.
+  // Uses the same catmull-rom → cubic-bezier spline algorithm Chart.js does.
   if (state.showElevation) {
     const elevContainer = document.getElementById('elevation-container');
     if (elevContainer && getComputedStyle(elevContainer).display !== 'none') {
       const er = sr(elevContainer);
-      const chartCanvas = document.getElementById('elevation-chart');
-      const elevB64 = canvasB64(chartCanvas);
-      parts.push(`<image x="${er.x.toFixed(2)}" y="${er.y.toFixed(2)}" width="${er.w.toFixed(2)}" height="${er.h.toFixed(2)}" xlink:href="data:image/png;base64,${elevB64}">\n</image>`);
+
+      if (elevChart && elevData.length) {
+        const canvas = document.getElementById('elevation-chart');
+        const cw = canvas.width;
+        const ch = canvas.height;
+
+        // Canvas device-px → SVG px
+        function csX(px) { return er.x + (px / cw) * er.w; }
+        function csY(py) { return er.y + (py / ch) * er.h; }
+
+        const xScale = elevChart.scales.x;
+        const yScale = elevChart.scales.y;
+        const ca     = elevChart.chartArea; // {left,right,top,bottom} in canvas px
+
+        const lbls  = elevChart.data.labels;
+        const elevs = elevChart.data.datasets[0].data;
+
+        // Canvas pixel coords for every chart data point
+        const pts = lbls.map((_, i) => ({
+          x: xScale.getPixelForValue(i),
+          y: yScale.getPixelForValue(elevs[i]),
+        }));
+
+        // Chart.js catmull-rom → cubic bezier control points (tension = 0.35)
+        const T = 0.35;
+        function pd(a, b) { return Math.sqrt((b.x - a.x) ** 2 + (b.y - a.y) ** 2); }
+        function cpt(prev, curr, next) {
+          const d01 = pd(curr, prev), d12 = pd(next, curr), s = d01 + d12;
+          const s01 = s ? d01 / s : 0, s12 = s ? d12 / s : 0;
+          return {
+            out: { x: curr.x + s12 * (next.x - prev.x) * T, y: curr.y + s12 * (next.y - prev.y) * T },
+            in:  { x: curr.x - s01 * (next.x - prev.x) * T, y: curr.y - s01 * (next.y - prev.y) * T },
+          };
+        }
+        const cps = pts.map((p, i) => cpt(
+          pts[Math.max(0, i - 1)], p, pts[Math.min(pts.length - 1, i + 1)]
+        ));
+
+        // Smooth line path in SVG coordinates
+        let linePath = `M ${csX(pts[0].x).toFixed(2)},${csY(pts[0].y).toFixed(2)}`;
+        for (let i = 1; i < pts.length; i++) {
+          const c1 = cps[i - 1].out, c2 = cps[i].in;
+          linePath += ` C ${csX(c1.x).toFixed(2)},${csY(c1.y).toFixed(2)} ${csX(c2.x).toFixed(2)},${csY(c2.y).toFixed(2)} ${csX(pts[i].x).toFixed(2)},${csY(pts[i].y).toFixed(2)}`;
+        }
+
+        // Fill path: close to the chart baseline and back to start
+        const bY = csY(ca.bottom);
+        const fillPath = linePath
+          + ` L ${csX(pts[pts.length - 1].x).toFixed(2)},${bY.toFixed(2)}`
+          + ` L ${csX(pts[0].x).toFixed(2)},${bY.toFixed(2)} Z`;
+
+        // Font/stroke sizes: Chart.js uses 8 CSS px; scale by DOM→SVG factor
+        const fsSvg = 8 * scaleY;
+        const lw    = 1.5 * scaleY;
+
+        // Background rect (matches poster bg so chart area looks clean)
+        const chartBg = toHex(getComputedStyle(poster).backgroundColor) || '#ffffff';
+        parts.push(`<rect x="${er.x.toFixed(2)}" y="${er.y.toFixed(2)}" width="${er.w.toFixed(2)}" height="${er.h.toFixed(2)}" fill="${chartBg}"/>`);
+
+        // Filled area under curve
+        parts.push(`<path d="${fillPath}" fill="#6e786e" fill-opacity="0.22" stroke="none"/>`);
+
+        // Elevation line
+        parts.push(`<path d="${linePath}" fill="none" stroke="#5a645a" stroke-opacity="0.65" stroke-width="${lw.toFixed(2)}" stroke-linecap="round" stroke-linejoin="round"/>`);
+
+        // Y-axis labels (e.g. "1000 m", "0 m", "-1000 m")
+        yScale.ticks.forEach(tick => {
+          const svgY = csY(yScale.getPixelForValue(tick.value)) + fsSvg * 0.35;
+          const svgX = csX(ca.left) - fsSvg * 0.6;
+          const lbl  = tick.label || (tick.value + ' m');
+          parts.push(`<text x="${svgX.toFixed(2)}" y="${svgY.toFixed(2)}" text-anchor="end" font-size="${fsSvg.toFixed(2)}" font-family="Inter,system-ui,sans-serif" fill="#bbbbbb">${esc(lbl)}</text>`);
+        });
+
+        // X-axis labels (e.g. "0 km", "61 km" …)
+        xScale.ticks.forEach(tick => {
+          const svgX = csX(xScale.getPixelForValue(tick.value));
+          const svgY = csY(ca.bottom) + fsSvg * 1.8;
+          const lbl  = tick.label || (lbls[tick.value] ? lbls[tick.value] + ' km' : String(tick.value) + ' km');
+          parts.push(`<text x="${svgX.toFixed(2)}" y="${svgY.toFixed(2)}" text-anchor="middle" font-size="${fsSvg.toFixed(2)}" font-family="Inter,system-ui,sans-serif" fill="#bbbbbb">${esc(lbl)}</text>`);
+        });
+      }
     }
   }
 
@@ -1268,6 +1348,97 @@ ${parts.join('\n')}
 </svg>`;
 }
 
+// ── ELEVATION CANVAS REDRAW ───────────────────────────────
+// Redraws the elevation chart directly onto a canvas 2D context at print
+// resolution using the same catmull-rom spline as buildVectorSVG.
+// dest{X,Y,W,H} are coordinates in the destination canvas (finalCanvas).
+function drawElevationOnCanvas(ctx, destX, destY, destW, destH) {
+  if (!elevChart || !elevData.length) return;
+  const lbls  = elevChart.data.labels;
+  const elevs = elevChart.data.datasets[0].data;
+  if (!lbls.length) return;
+
+  const xScale = elevChart.scales.x;
+  const yScale = elevChart.scales.y;
+  const ca     = elevChart.chartArea; // {left,right,top,bottom} in source canvas px
+
+  const srcCanvas = document.getElementById('elevation-chart');
+  const cw = srcCanvas.width;
+  const ch = srcCanvas.height;
+
+  // Source canvas px → destination canvas px
+  function tx(px) { return destX + (px / cw) * destW; }
+  function ty(py) { return destY + (py / ch) * destH; }
+
+  // Chart.js catmull-rom → cubic bezier control points (tension = 0.35)
+  const T = 0.35;
+  const pts = lbls.map((_, i) => ({
+    x: xScale.getPixelForValue(i),
+    y: yScale.getPixelForValue(elevs[i]),
+  }));
+
+  function pd(a, b) { return Math.sqrt((b.x - a.x) ** 2 + (b.y - a.y) ** 2); }
+  function cpt(prev, curr, next) {
+    const d01 = pd(curr, prev), d12 = pd(next, curr), s = d01 + d12;
+    const s01 = s ? d01 / s : 0, s12 = s ? d12 / s : 0;
+    return {
+      out: { x: curr.x + s12 * (next.x - prev.x) * T, y: curr.y + s12 * (next.y - prev.y) * T },
+      in:  { x: curr.x - s01 * (next.x - prev.x) * T, y: curr.y - s01 * (next.y - prev.y) * T },
+    };
+  }
+  const cps = pts.map((p, i) => cpt(
+    pts[Math.max(0, i - 1)], p, pts[Math.min(pts.length - 1, i + 1)]
+  ));
+
+  // Clear chart area with poster background
+  ctx.fillStyle = getComputedStyle(document.getElementById('poster')).backgroundColor || '#ffffff';
+  ctx.fillRect(destX, destY, destW, destH);
+
+  // Filled area under the curve
+  ctx.beginPath();
+  ctx.moveTo(tx(pts[0].x), ty(pts[0].y));
+  for (let i = 1; i < pts.length; i++) {
+    const c1 = cps[i - 1].out, c2 = cps[i].in;
+    ctx.bezierCurveTo(tx(c1.x), ty(c1.y), tx(c2.x), ty(c2.y), tx(pts[i].x), ty(pts[i].y));
+  }
+  ctx.lineTo(tx(pts[pts.length - 1].x), ty(ca.bottom));
+  ctx.lineTo(tx(pts[0].x), ty(ca.bottom));
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(110,120,110,0.22)';
+  ctx.fill();
+
+  // Elevation line
+  ctx.beginPath();
+  ctx.moveTo(tx(pts[0].x), ty(pts[0].y));
+  for (let i = 1; i < pts.length; i++) {
+    const c1 = cps[i - 1].out, c2 = cps[i].in;
+    ctx.bezierCurveTo(tx(c1.x), ty(c1.y), tx(c2.x), ty(c2.y), tx(pts[i].x), ty(pts[i].y));
+  }
+  ctx.strokeStyle = 'rgba(90,100,90,0.65)';
+  ctx.lineWidth   = 1.5 * (destH / ch);
+  ctx.lineCap     = 'round';
+  ctx.lineJoin    = 'round';
+  ctx.stroke();
+
+  // Axis labels (font size scaled proportionally to the destination rect)
+  const fontSize = 8 * (destH / ch);
+  ctx.fillStyle    = '#bbbbbb';
+  ctx.textBaseline = 'middle';
+  ctx.font         = `${fontSize}px Inter, system-ui, sans-serif`;
+
+  ctx.textAlign = 'right';
+  yScale.ticks.forEach(tick => {
+    const lbl = tick.label || (tick.value + ' m');
+    ctx.fillText(lbl, tx(ca.left) - fontSize * 0.6, ty(yScale.getPixelForValue(tick.value)));
+  });
+
+  ctx.textAlign = 'center';
+  xScale.ticks.forEach(tick => {
+    const lbl = tick.label || (lbls[tick.value] ? lbls[tick.value] + ' km' : String(tick.value) + ' km');
+    ctx.fillText(lbl, tx(xScale.getPixelForValue(tick.value)), ty(ca.bottom) + fontSize * 1.3);
+  });
+}
+
 async function exportAs(format) {
   // Close the menu
   exportMenuOpen = false;
@@ -1326,6 +1497,26 @@ async function exportAs(format) {
       finalCanvas.getContext('2d').drawImage(rawCanvas, 0, 0, targetW, targetH);
     }
 
+    // For raster exports (PNG / JPEG / PDF): overdraw the elevation chart area
+    // with a high-resolution bezier-curve render, replacing the html2canvas
+    // screen-resolution capture with print-sharp vector curves.
+    if (format !== 'svg' && state.showElevation) {
+      const elevContainer = document.getElementById('elevation-container');
+      if (elevContainer && getComputedStyle(elevContainer).display !== 'none') {
+        const posterR = poster.getBoundingClientRect();
+        const elevR   = elevContainer.getBoundingClientRect();
+        const rx = (elevR.left - posterR.left) / posterR.width;
+        const ry = (elevR.top  - posterR.top)  / posterR.height;
+        const rw = elevR.width  / posterR.width;
+        const rh = elevR.height / posterR.height;
+        drawElevationOnCanvas(
+          finalCanvas.getContext('2d'),
+          rx * finalCanvas.width,  ry * finalCanvas.height,
+          rw * finalCanvas.width,  rh * finalCanvas.height
+        );
+      }
+    }
+
     // SVG: build a true-vector SVG (each text/rect/circle is a separate node).
     // Bypasses the html2canvas raster capture — vector is built directly from DOM.
     if (format === 'svg') {
@@ -1337,6 +1528,21 @@ async function exportAs(format) {
       link.href = svgUrl;
       link.click();
       setTimeout(() => URL.revokeObjectURL(svgUrl), 5000);
+      return;
+    }
+
+    // PDF: embed the finalCanvas as a JPEG inside a correctly-sized PDF page.
+    if (format === 'pdf') {
+      const { jsPDF } = window.jspdf;
+      const dims = PAPER_SIZES_MM[selectedPaperSize] || { wMm: 406, hMm: 610 };
+      const doc  = new jsPDF({
+        orientation: dims.wMm <= dims.hMm ? 'portrait' : 'landscape',
+        unit:   'mm',
+        format: [dims.wMm, dims.hMm],
+      });
+      const imgData = finalCanvas.toDataURL('image/jpeg', 0.95);
+      doc.addImage(imgData, 'JPEG', 0, 0, dims.wMm, dims.hMm);
+      doc.save(`framed-trails-${selectedPaperSize}-${dpi}dpi-${Date.now()}.pdf`);
       return;
     }
 

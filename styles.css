@@ -395,7 +395,7 @@ body {
   align-items: center;
   justify-content: center;
   padding: 10px 12px;
-  gap: 1px;
+  gap: 5px;
   background: var(--poster-bg);
   transition: background 0.3s;
 }
