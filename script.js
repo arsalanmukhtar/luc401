@@ -33,6 +33,15 @@ let markerSize     = 12;
 let dashGap        = 2;
 let dashPatternKey = 'short';
 
+// ── PAPER SIZES (mm) ──────────────────────────────────────
+// Used for live aspect-ratio preview and pixel-perfect export.
+const PAPER_SIZES_MM = {
+  'digital': { wMm: 406, hMm: 610 },
+  'small':   { wMm: 200, hMm: 300 },
+  'medium':  { wMm: 300, hMm: 450 },
+  'large':   { wMm: 400, hMm: 600 },
+};
+
 // Returns mapbox line-dasharray for current pattern + gap
 const DASH_PATTERNS = {
   'short':    (g) => [3,   g],
@@ -259,12 +268,12 @@ function initMap() {
   map.on('load', () => {
     updateZoomLabel();
     addRouteSource();          // source + layer always exist before restore runs
-    setTimeout(() => map.resize(), 50);
+    setTimeout(() => { map.resize(); applyPosterAspectRatio(); }, 50);
     loadBasemapThumbnails();
     restoreRoutes();           // IDB read happens here; source is guaranteed ready
   });
 
-  window.addEventListener('resize', () => map && map.resize());
+  window.addEventListener('resize', () => { if (map) map.resize(); applyPosterAspectRatio(); });
 }
 
 // Inject real Mapbox Static API thumbnails into basemap swatches
@@ -923,6 +932,38 @@ function setPosterSize(size) {
   selectedPaperSize = size;
   document.querySelectorAll('.print-size-item').forEach(s =>
     s.classList.toggle('active', s.dataset.size === size));
+  applyPosterAspectRatio();
+}
+
+// Resize the poster DOM element to the selected paper's aspect ratio,
+// constrained to fit the preview-scroll container.
+function applyPosterAspectRatio() {
+  const poster = document.getElementById('poster');
+  const scroll = document.querySelector('.preview-scroll');
+  if (!poster || !scroll) return;
+
+  const dims = PAPER_SIZES_MM[selectedPaperSize];
+  if (!dims) return;
+
+  const availW = scroll.clientWidth;
+  const availH = scroll.clientHeight;
+  if (!availW || !availH) return;
+
+  const ratio  = dims.wMm / dims.hMm;     // width-to-height ratio
+  const maxW   = Math.min(600, availW);
+
+  let w = maxW;
+  let h = w / ratio;
+
+  if (h > availH) {
+    h = availH;
+    w = h * ratio;
+    w = Math.min(w, maxW);
+  }
+
+  poster.style.width  = Math.round(w) + 'px';
+  poster.style.height = Math.round(h) + 'px';
+  if (map) map.resize();
 }
 
 function filterSizes(query) {
@@ -1000,7 +1041,7 @@ async function exportAs(format) {
 
     await sleep(80);
 
-    const canvas = await html2canvas(poster, {
+    const rawCanvas = await html2canvas(poster, {
       scale,
       useCORS: true,
       allowTaint: false,
@@ -1015,7 +1056,36 @@ async function exportAs(format) {
     const ext      = format === 'jpeg' ? 'jpg' : 'png';
     const dpi      = SCALE_TO_DPI[String(scale)] || 300;
 
-    let dataUrl = canvas.toDataURL(mimeType, 0.92);
+    // Scale output canvas to exact paper pixel dimensions at the chosen DPI
+    const paperDims = PAPER_SIZES_MM[selectedPaperSize];
+    let finalCanvas = rawCanvas;
+    if (paperDims) {
+      const pxPerMm = dpi / 25.4;
+      const targetW = Math.round(paperDims.wMm * pxPerMm);
+      const targetH = Math.round(paperDims.hMm * pxPerMm);
+      finalCanvas = document.createElement('canvas');
+      finalCanvas.width  = targetW;
+      finalCanvas.height = targetH;
+      finalCanvas.getContext('2d').drawImage(rawCanvas, 0, 0, targetW, targetH);
+    }
+
+    // SVG: wrap the raster capture in an SVG container
+    if (format === 'svg') {
+      const rasterUrl = finalCanvas.toDataURL('image/png', 0.92);
+      const svgW = finalCanvas.width;
+      const svgH = finalCanvas.height;
+      const svgMarkup = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}"><image href="${rasterUrl}" width="${svgW}" height="${svgH}"/></svg>`;
+      const blob = new Blob([svgMarkup], { type: 'image/svg+xml' });
+      const svgUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.download = `framed-trails-${selectedPaperSize}-${dpi}dpi-${Date.now()}.svg`;
+      link.href = svgUrl;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(svgUrl), 5000);
+      return;
+    }
+
+    let dataUrl = finalCanvas.toDataURL(mimeType, 0.92);
 
     // Embed physical DPI metadata into the image binary
     if (format === 'png')  dataUrl = setPNGDPI(dataUrl, dpi);
@@ -1235,4 +1305,9 @@ document.addEventListener('keydown', e => {
 // ── INIT ──────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   initSheetDrag();
+  // Apply initial poster aspect ratio once layout has settled
+  requestAnimationFrame(() => applyPosterAspectRatio());
+  // Re-apply whenever the preview area is resized (panel open/close, window resize, etc.)
+  const scrollEl = document.querySelector('.preview-scroll');
+  if (scrollEl) new ResizeObserver(() => applyPosterAspectRatio()).observe(scrollEl);
 });
