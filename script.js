@@ -1110,3 +1110,95 @@ function showUploadStatus(type, msg) {
 function sleep(ms) {
   return new Promise(r => setTimeout(r, ms));
 }
+
+// ── MOBILE BOTTOM SHEET ────────────────────────────────────────────────────
+const MOBILE_BP             = 768;
+const SHEET_TRANSITION_MS   = 380;
+const SHEET_CLOSE_THRESHOLD = 80;  // px swipe-down before snap-close
+
+let sheetOpen      = false;
+let sheetActiveTab = 'route';
+let _dragStartY    = 0;
+let _dragCurrentY  = 0;
+let _isDragging    = false;
+
+function isMobile() { return window.innerWidth <= MOBILE_BP; }
+
+function mobileTabTap(tabName) {
+  if (!isMobile()) { switchTab(tabName); return; }
+
+  // Sync bottom nav active state
+  document.querySelectorAll('.mobile-nav-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.tab === tabName));
+
+  // Same tab tapped while open → close sheet
+  if (sheetOpen && sheetActiveTab === tabName) { closeSheet(); return; }
+
+  sheetActiveTab = tabName;
+  switchTab(tabName);   // syncs content + desktop tab-btn state
+  openSheet();
+}
+
+function openSheet() {
+  sheetOpen = true;
+  document.querySelector('.settings-panel').classList.add('sheet-open');
+  document.getElementById('sheet-backdrop').classList.add('visible');
+  setTimeout(() => map && map.resize(), SHEET_TRANSITION_MS);
+}
+
+function closeSheet() {
+  sheetOpen = false;
+  const panel = document.querySelector('.settings-panel');
+  panel.style.transition = '';
+  panel.style.transform  = '';
+  panel.classList.remove('sheet-open');
+  document.getElementById('sheet-backdrop').classList.remove('visible');
+  document.querySelectorAll('.mobile-nav-btn').forEach(b => b.classList.remove('active'));
+  setTimeout(() => map && map.resize(), SHEET_TRANSITION_MS);
+}
+
+// ── SWIPE-DOWN-TO-CLOSE ────────────────────────────────────────────────────
+function initSheetDrag() {
+  const bar = document.getElementById('sheet-handle-bar');
+  if (!bar) return;
+  bar.addEventListener('touchstart', e => {
+    if (!isMobile() || !sheetOpen) return;
+    _isDragging  = true;
+    _dragStartY  = e.touches[0].clientY;
+    _dragCurrentY = _dragStartY;
+    document.querySelector('.settings-panel').style.transition = 'none';
+  }, { passive: true });
+
+  bar.addEventListener('touchmove', e => {
+    if (!_isDragging) return;
+    _dragCurrentY = e.touches[0].clientY;
+    const delta = _dragCurrentY - _dragStartY;
+    if (delta <= 0) return;
+    e.preventDefault();
+    document.querySelector('.settings-panel').style.transform = `translateY(${delta}px)`;
+  }, { passive: false });
+
+  bar.addEventListener('touchend', () => {
+    if (!_isDragging) return;
+    _isDragging = false;
+    const panel = document.querySelector('.settings-panel');
+    panel.style.transition = '';
+    panel.style.transform  = '';
+    if (_dragCurrentY - _dragStartY > SHEET_CLOSE_THRESHOLD) closeSheet();
+  }, { passive: true });
+}
+
+// ── RESIZE — clean up sheet state when switching to desktop ───────────────
+window.addEventListener('resize', () => {
+  if (!isMobile() && sheetOpen) closeSheet();
+});
+
+// ── KEYBOARD: Escape closes sheet ─────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && sheetOpen) closeSheet();
+});
+
+// ── INIT ──────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  initSheetDrag();
+});

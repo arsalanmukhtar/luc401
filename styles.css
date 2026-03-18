@@ -1178,3 +1178,236 @@ select.form-input { cursor: pointer; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border-soft); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* ── Mobile-only elements — hidden on desktop ────── */
+.mobile-bottom-nav { display: none; }
+.sheet-backdrop    { display: none; }
+.sheet-handle-bar  { display: none; }
+
+/* ════════════════════════════════════════════════════
+   MOBILE RESPONSIVE  (≤ 768 px)
+   ════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+
+  /* ── Viewport lock ────────────────────────────── */
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
+  /* ── Header ───────────────────────────────────── */
+  .app-header {
+    height: 44px;
+    padding: 0 14px;
+  }
+  .header-tagline { display: none; }
+  .brand-name { font-size: 15px; }
+
+  /* ── App Main ─────────────────────────────────── */
+  .app-main {
+    height: calc(100vh - 44px);
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── Preview Panel ────────────────────────────── */
+  .preview-panel {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    overflow: hidden;
+    padding: 10px 10px 0;
+    align-items: flex-start;
+    justify-content: flex-start;
+  }
+
+  .preview-scroll {
+    width: 100%;
+    height: 100%;
+    min-height: unset;
+    align-items: flex-start;
+    justify-content: center;
+  }
+
+  /* ── Poster ───────────────────────────────────── */
+  .poster {
+    width: 100%;
+    max-width: 100%;
+    /* header(44) + mobile-nav(56) + top-pad(10) + bottom-pad(10) */
+    height: calc(100vh - 44px - 56px - 20px);
+    min-height: unset;
+    border-radius: 10px;
+    padding: 14px 14px 10px;
+    gap: 8px;
+  }
+  .poster-title    { font-size: 20px; }
+  .poster-subtitle { font-size: 8.5px; letter-spacing: 1.2px; margin-top: 3px; }
+  .poster-elevation { height: 50px; }
+  .poster-stat     { padding: 7px 10px; }
+  .poster-legend   { gap: 12px; }
+  .stat-value      { font-size: 18px; }
+  .stat-label      { font-size: 7.5px; }
+  .stat-unit       { font-size: 8px; }
+  .legend-item     { font-size: 8px; gap: 4px; }
+  .legend-dot      { width: 7px; height: 7px; }
+  .poster-footer-brand { font-size: 7px; gap: 4px; }
+
+  /* ── Fit FAB ──────────────────────────────────── */
+  .fit-fab {
+    bottom: calc(56px + 10px);
+    padding: 7px 16px;
+    font-size: 11.5px;
+    gap: 6px;
+  }
+  .fit-fab:hover {
+    transform: translateX(-50%) translateY(-1px);
+  }
+
+  /* ── Settings Panel → Bottom Sheet ───────────── */
+  .settings-panel {
+    position: fixed;
+    bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+    left: 0;
+    right: 0;
+    width: 100%;
+    height: 70vh;
+    border-left: none;
+    border-top: 1px solid var(--border-soft);
+    border-radius: 20px 20px 0 0;
+    /* Start fully off-screen */
+    transform: translateY(100%);
+    transition: transform 0.38s cubic-bezier(0.32, 0.72, 0, 1);
+    box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.18);
+    z-index: 300;
+    overflow: visible; /* let export menu overflow upward */
+  }
+  [data-theme="dark"] .settings-panel {
+    box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.55);
+  }
+  .settings-panel.sheet-open {
+    transform: translateY(0);
+  }
+
+  /* ── Sheet drag handle pill ───────────────────── */
+  .sheet-handle-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 0 6px;
+    flex-shrink: 0;
+    cursor: grab;
+    touch-action: none;
+  }
+  .sheet-handle-pill {
+    width: 36px;
+    height: 4px;
+    background: var(--border-soft);
+    border-radius: 2px;
+    transition: background var(--transition);
+  }
+  .sheet-handle-bar:active .sheet-handle-pill {
+    background: var(--text-muted);
+  }
+
+  /* ── Desktop tabs — hidden inside sheet ──────── */
+  .tabs { display: none; }
+
+  /* ── Sheet content area ───────────────────────── */
+  .tab-contents {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+  .tab-pane {
+    padding: 10px 12px 16px;
+    gap: 10px;
+  }
+
+  /* ── Export bar at bottom of sheet ───────────── */
+  .export-bar {
+    padding: 10px 12px calc(12px + env(safe-area-inset-bottom, 0px));
+    flex-shrink: 0;
+  }
+
+  /* ── Cards ────────────────────────────────────── */
+  .card { padding: 12px; gap: 8px; }
+  .card-label { font-size: 9.5px; }
+
+  /* ── Style grid ───────────────────────────────── */
+  .style-grid { grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .swatch-name { font-size: 8px; }
+
+  /* ── Route list ───────────────────────────────── */
+  .added-routes-list { max-height: 180px; }
+
+  /* ── Upload area ──────────────────────────────── */
+  .upload-area { padding: 14px 12px; }
+
+  /* ── Print size list ──────────────────────────── */
+  .print-size-item { padding: 10px 12px; }
+  .print-size-name { font-size: 12px; }
+
+  /* ── Export trigger ───────────────────────────── */
+  .export-trigger { height: 38px; font-size: 13px; }
+
+  /* ── Backdrop ─────────────────────────────────── */
+  .sheet-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 200;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.28s ease;
+  }
+  .sheet-backdrop.visible {
+    opacity: 1;
+    pointer-events: all;
+  }
+  [data-theme="dark"] .sheet-backdrop { background: rgba(0, 0, 0, 0.65); }
+
+  /* ── Mobile bottom nav bar ────────────────────── */
+  .mobile-bottom-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: calc(56px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    background: var(--header-bg);
+    border-top: 1px solid var(--header-border);
+    z-index: 400;
+    align-items: stretch;
+  }
+  .mobile-nav-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    background: none;
+    border: none;
+    border-top: 2px solid transparent;
+    color: #666;
+    font-size: 10px;
+    font-weight: 500;
+    font-family: 'Inter', system-ui, sans-serif;
+    cursor: pointer;
+    padding: 6px 4px;
+    transition: color 0.18s ease, border-color 0.18s ease;
+  }
+  .mobile-nav-btn.active {
+    color: var(--accent);
+    border-top-color: var(--accent);
+  }
+  .mobile-nav-btn span { line-height: 1; }
+  [data-theme="light"] .mobile-nav-btn { color: #888; }
+
+} /* end @media (max-width: 768px) */

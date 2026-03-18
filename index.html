@@ -134,6 +134,11 @@
     <!-- ===== RIGHT: SETTINGS PANEL ===== -->
     <aside class="settings-panel">
 
+      <!-- Drag handle — visible on mobile only -->
+      <div class="sheet-handle-bar" id="sheet-handle-bar" aria-hidden="true">
+        <div class="sheet-handle-pill"></div>
+      </div>
+
       <!-- Tabs -->
       <div class="tabs">
         <button class="tab-btn active" data-tab="route" onclick="switchTab('route')">
@@ -585,6 +590,29 @@
     </aside><!-- /settings-panel -->
 
   </main>
+
+  <!-- ===== MOBILE BOTTOM NAV ===== -->
+  <nav class="mobile-bottom-nav" id="mobile-bottom-nav" aria-label="Settings navigation">
+    <button class="mobile-nav-btn active" data-tab="route" onclick="mobileTabTap('route')">
+      <i data-lucide="map-pin" style="width:18px;height:18px;"></i>
+      <span>Route</span>
+    </button>
+    <button class="mobile-nav-btn" data-tab="style" onclick="mobileTabTap('style')">
+      <i data-lucide="palette" style="width:18px;height:18px;"></i>
+      <span>Style</span>
+    </button>
+    <button class="mobile-nav-btn" data-tab="text" onclick="mobileTabTap('text')">
+      <i data-lucide="type" style="width:18px;height:18px;"></i>
+      <span>Text</span>
+    </button>
+    <button class="mobile-nav-btn" data-tab="size" onclick="mobileTabTap('size')">
+      <i data-lucide="maximize" style="width:18px;height:18px;"></i>
+      <span>Size</span>
+    </button>
+  </nav>
+
+  <!-- ===== BOTTOM SHEET BACKDROP ===== -->
+  <div class="sheet-backdrop" id="sheet-backdrop" onclick="closeSheet()"></div>
 
   <script src="config.js"></script>
   <script src="script.min.js"></script>

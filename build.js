@@ -51,6 +51,7 @@ minify(src, {
       'syncText','toggleExportMenu','exportAs','toggleTheme',
       'startEditName','loadFileFromList','deleteFileFromList',
       'toggleTopo','initMap','initElevChart','initDragDrop',
+      'mobileTabTap','openSheet','closeSheet',
     ],
   },
   format: {
