@@ -96,7 +96,8 @@ body {
   font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif;
   background: var(--bg-app);
   color: var(--text-primary);
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh; /* accounts for mobile browser chrome */
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -182,17 +183,18 @@ body {
 /* ── Layout ──────────────────────────────────────────────── */
 .app-main {
   flex: 1;
+  min-height: 0;
   display: flex;
   overflow: hidden;
-  height: calc(100vh - 52px);
 }
 
 /* ── Preview Panel ───────────────────────────────────────── */
 .preview-panel {
   flex: 1;
   min-height: 0;
-  overflow: auto;
+  overflow: hidden;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 28px 24px 72px;   /* extra bottom clears the fit-fab */
@@ -246,19 +248,20 @@ body {
   color: #fff;
 }
 .preview-scroll {
+  flex: 1;
+  min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   width: 100%;
-  min-height: 0;
 }
 
 /* ── Poster ──────────────────────────────────────────────── */
 .poster {
   background: var(--poster-bg);
   width: clamp(360px, 600px, 100%);
-  /* fill available height minus header + panel padding (28+72=100px) */
-  height: calc(100vh - 52px - 100px);
+  /* fill the available height of preview-scroll via flex chain */
+  height: 100%;
   min-height: 0;
   border-radius: var(--radius-poster);
   box-shadow: var(--shadow-poster);
@@ -1438,7 +1441,6 @@ select.form-input { cursor: pointer; }
 
   /* ── App Main ─────────────────────────────────── */
   .app-main {
-    height: calc(100vh - 44px);
     flex-direction: column;
     overflow: hidden;
   }
@@ -1449,15 +1451,16 @@ select.form-input { cursor: pointer; }
     min-height: 0;
     width: 100%;
     overflow: hidden;
-    padding: 10px 10px 0;
+    padding: 10px 10px 118px; /* 56px mobile-nav + 52px fit-fab + 10px gap */
     align-items: flex-start;
     justify-content: flex-start;
   }
 
   .preview-scroll {
+    flex: 1;
+    min-height: 0;
     width: 100%;
     height: 100%;
-    min-height: unset;
     align-items: flex-start;
     justify-content: center;
   }
@@ -1466,9 +1469,8 @@ select.form-input { cursor: pointer; }
   .poster {
     width: 100%;
     max-width: 100%;
-    /* header(44) + mobile-nav(56) + top-pad(10) + fit-fab-area(52) + gap(10) */
-    height: calc(100vh - 44px - 56px - 10px - 52px - 10px);
-    min-height: unset;
+    height: 100%; /* fills preview-scroll via flex chain */
+    min-height: 0;
     border-radius: 10px;
     padding: 14px 14px 10px;
     gap: 8px;
