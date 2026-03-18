@@ -49,14 +49,86 @@ const state = {
 // ── GPX FILE LIST ─────────────────────────────────────────
 const uploadedFiles  = [];   // [{name, coords, elevations, pointCount, distanceKm}]
 let   activeFileIdx  = -1;
-const SESSION_KEY    = 'framedTrails_routes';
+// ── PERSISTENCE (IndexedDB — no size limit unlike sessionStorage) ──────────
+const IDB_NAME  = 'FramedTrails';
+const IDB_STORE = 'routes';
+
+function openRouteDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(IDB_NAME, 1);
+    req.onupgradeneeded = e =>
+      e.target.result.createObjectStore(IDB_STORE, { keyPath: 'idx' });
+    req.onsuccess = e => resolve(e.target.result);
+    req.onerror   = e => reject(e.target.error);
+  });
+}
+
+async function persistRoutes() {
+  try {
+    const db = await openRouteDB();
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    const st = tx.objectStore(IDB_STORE);
+    st.clear();
+    uploadedFiles.forEach((f, idx) =>
+      st.put({ idx, name: f.name, coords: f.coords,
+               elevations: f.elevations, pointCount: f.pointCount,
+               distanceKm: f.distanceKm }));
+    await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = e => rej(e.target.error); });
+    // store active index separately (tiny, fine for sessionStorage)
+    sessionStorage.setItem('ft_activeIdx', String(activeFileIdx));
+  } catch (e) {
+    console.warn('[IDB] persistRoutes failed:', e);
+  }
+}
+
+async function restoreRoutes() {
+  try {
+    const db = await openRouteDB();
+    const records = await new Promise((res, rej) => {
+      const req = db.transaction(IDB_STORE, 'readonly').objectStore(IDB_STORE).getAll();
+      req.onsuccess = e => res(e.target.result);
+      req.onerror   = e => rej(e.target.error);
+    });
+    if (!records.length) return;
+
+    records.sort((a, b) => a.idx - b.idx).forEach(r =>
+      uploadedFiles.push({ name: r.name, coords: r.coords, elevations: r.elevations,
+                           pointCount: r.pointCount, distanceKm: r.distanceKm }));
+
+    const saved   = parseInt(sessionStorage.getItem('ft_activeIdx') || '0');
+    activeFileIdx = Math.max(0, Math.min(saved, uploadedFiles.length - 1));
+    const f       = uploadedFiles[activeFileIdx];
+    routeCoords   = f.coords;
+    elevData      = f.elevations;
+
+    const doRender = () => {
+      // addRouteSource is idempotent — safe even if map.on('load') already ran it
+      if (!map.getSource('route')) addRouteSource();
+      renderRoute();        // calls fitToRoute() internally → map zooms to GPX extent
+      renderElevChart();
+      computeStats();
+      document.getElementById('route-pill').style.display = 'flex';
+      document.getElementById('route-pill-text').textContent =
+        `${f.pointCount.toLocaleString()} pts · ${f.distanceKm.toFixed(1)} km`;
+      document.getElementById('map-empty').classList.add('hidden');
+      renderFileList();
+    };
+
+    if (map.loaded()) doRender();
+    else map.once('load', doRender);
+  } catch (e) {
+    console.warn('[IDB] restoreRoutes failed:', e);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 function addToFileList(name, coords, elevations) {
-  const cumDist   = buildCumDist(coords);
+  const cumDist    = buildCumDist(coords);
   const distanceKm = cumDist[cumDist.length - 1] || 0;
   uploadedFiles.push({ name, coords, elevations, pointCount: coords.length, distanceKm });
   activeFileIdx = uploadedFiles.length - 1;
-  saveFilesToSession();
+  persistRoutes();
   renderFileList();
 }
 
@@ -73,6 +145,7 @@ function loadFileFromList(index) {
   pillText.textContent = `${f.pointCount.toLocaleString()} pts · ${f.distanceKm.toFixed(1)} km`;
   document.getElementById('route-pill').style.display = 'flex';
   document.getElementById('map-empty').classList.add('hidden');
+  sessionStorage.setItem('ft_activeIdx', String(index));
   renderFileList();
 }
 
@@ -90,7 +163,7 @@ function deleteFileFromList(index) {
   } else {
     loadFileFromList(Math.min(index, uploadedFiles.length - 1));
   }
-  saveFilesToSession();
+  persistRoutes();
   renderFileList();
 }
 
@@ -108,7 +181,12 @@ function renderFileList() {
         <i data-lucide="route" style="width:15px;height:15px;"></i>
       </div>
       <div class="route-list-info" onclick="loadFileFromList(${i})">
-        <span class="route-list-name">${f.name}</span>
+        <div class="route-list-name-row">
+          <span class="route-list-name" id="route-name-${i}">${f.name}</span>
+          <button class="route-name-edit-btn" onclick="startEditName(event,${i})" title="Rename">
+            <i data-lucide="pencil" style="width:11px;height:11px;"></i>
+          </button>
+        </div>
         <span class="route-list-sub">Upload · ${f.pointCount.toLocaleString()} pts</span>
       </div>
       <button class="route-list-delete" onclick="deleteFileFromList(${i})" title="Remove">
@@ -119,38 +197,37 @@ function renderFileList() {
   lucide.createIcons();
 }
 
-function saveFilesToSession() {
-  try {
-    sessionStorage.setItem(SESSION_KEY, JSON.stringify(
-      uploadedFiles.map(f => ({ name: f.name, coords: f.coords, elevations: f.elevations,
-                                 pointCount: f.pointCount, distanceKm: f.distanceKm }))
-    ));
-  } catch (e) {
-    console.warn('sessionStorage quota exceeded — route list not persisted:', e);
-  }
+function startEditName(event, index) {
+  event.stopPropagation();
+  const nameSpan  = document.getElementById(`route-name-${index}`);
+  const editBtn   = nameSpan.nextElementSibling;
+  const original  = uploadedFiles[index].name;
+
+  const input = document.createElement('input');
+  input.className = 'route-name-input';
+  input.type  = 'text';
+  input.value = original;
+
+  const commit = () => {
+    const newName = input.value.trim() || original;
+    uploadedFiles[index].name = newName;
+    persistRoutes();
+    renderFileList();
+    lucide.createIcons();
+  };
+
+  input.addEventListener('blur',    commit);
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter')  { input.blur(); }
+    if (e.key === 'Escape') { input.value = original; input.blur(); }
+  });
+
+  nameSpan.replaceWith(input);
+  editBtn.style.display = 'none';
+  input.focus();
+  input.select();
 }
 
-function loadFilesFromSession() {
-  try {
-    const raw = sessionStorage.getItem(SESSION_KEY);
-    if (!raw) return;
-    const data = JSON.parse(raw);
-    if (!data.length) return;
-    data.forEach(f => uploadedFiles.push(f));
-    activeFileIdx = 0;
-    const f = uploadedFiles[0];
-    routeCoords = f.coords; elevData = f.elevations;
-    // defer until map is loaded
-    map.once('load', () => { renderRoute(); renderElevChart(); computeStats(); });
-    document.getElementById('route-pill').style.display = 'flex';
-    document.getElementById('route-pill-text').textContent =
-      `${f.pointCount.toLocaleString()} pts · ${f.distanceKm.toFixed(1)} km`;
-    document.getElementById('map-empty').classList.add('hidden');
-    renderFileList();
-  } catch (e) {
-    console.warn('Could not restore session routes:', e);
-  }
-}
 
 // ── INIT ──────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
@@ -163,7 +240,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initMap();
   initElevChart();
   initDragDrop();
-  loadFilesFromSession();
+  restoreRoutes();
   lucide.createIcons();
 });
 

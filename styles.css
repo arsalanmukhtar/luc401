@@ -195,9 +195,55 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 28px 24px;
+  padding: 28px 24px 72px;   /* extra bottom clears the fit-fab */
   background: var(--bg-app);
   transition: background var(--transition);
+  position: relative;
+}
+
+/* Fit to route — floating pill outside poster, not captured in export */
+.fit-fab {
+  position: absolute;
+  bottom: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 20px;
+  background: rgba(255,255,255,0.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1.5px solid var(--border-soft);
+  border-radius: 30px;
+  font-size: 12.5px;
+  font-weight: 600;
+  font-family: 'Inter', system-ui, sans-serif;
+  color: var(--text-secondary);
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1), 0 1px 5px rgba(0,0,0,0.07);
+  transition: background var(--transition), color var(--transition),
+              border-color var(--transition), box-shadow var(--transition),
+              transform 0.15s ease;
+  white-space: nowrap;
+  z-index: 20;
+}
+.fit-fab:hover {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+  box-shadow: 0 6px 24px rgba(39,174,96,0.32), 0 2px 6px rgba(0,0,0,0.1);
+  transform: translateX(-50%) translateY(-2px);
+}
+[data-theme="dark"] .fit-fab {
+  background: rgba(25,25,25,0.88);
+  border-color: #333;
+  color: var(--text-primary);
+}
+[data-theme="dark"] .fit-fab:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
 }
 .preview-scroll {
   display: flex;
@@ -205,15 +251,15 @@ body {
   justify-content: center;
   width: 100%;
   /* ensures panel fills available height so poster can stretch */
-  min-height: calc(100vh - 52px - 56px);
+  min-height: calc(100vh - 52px - 56px - 44px);
 }
 
 /* ── Poster ──────────────────────────────────────────────── */
 .poster {
   background: var(--poster-bg);
   width: 600px;
-  /* fill the available panel height minus top+bottom padding (28px × 2) */
-  height: calc(100vh - 52px - 56px);
+  /* panel padding: 28px top + 72px bottom; subtract both from available height */
+  height: calc(100vh - 52px - 56px - 44px);
   min-height: 600px;
   border-radius: var(--radius-poster);
   box-shadow: var(--shadow-poster);
@@ -473,10 +519,19 @@ body {
   padding: 7px 10px;
   border-radius: var(--radius-sm);
 }
-.upload-status.success { display: block; background: #fef9c3; color: #854d0e; }
-.upload-status.error   { display: block; background: #fde8e8; color: #a00; }
-[data-theme="dark"] .upload-status.success { background: #2d2200; color: #fde047; }
-[data-theme="dark"] .upload-status.error   { background: #2d1010; color: #e06060; }
+.upload-status.success {
+  display: block;
+  background: #fef9c3;
+  color: #854d0e;
+  border: 1.5px solid #fde047;
+}
+.upload-status.error { display: block; background: #fde8e8; color: #a00; }
+[data-theme="dark"] .upload-status.success {
+  background: #2d2200;
+  color: #fde047;
+  border: 1.5px solid #78350f;
+}
+[data-theme="dark"] .upload-status.error { background: #2d1010; color: #e06060; }
 
 /* Route Pill */
 .route-pill {
@@ -847,6 +902,42 @@ select.form-input { cursor: pointer; }
 .route-list-sub {
   font-size: 10px;
   color: var(--text-muted);
+}
+.route-list-name-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.route-name-edit-btn {
+  background: none;
+  border: none;
+  padding: 2px 3px;
+  border-radius: 3px;
+  color: var(--text-muted);
+  cursor: pointer;
+  opacity: 0;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  transition: opacity var(--transition), color var(--transition), background var(--transition);
+}
+.route-list-item:hover .route-name-edit-btn,
+.route-list-item.active .route-name-edit-btn { opacity: 1; }
+.route-name-edit-btn:hover { color: var(--accent); background: var(--accent-subtle); }
+.route-name-input {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: var(--bg-input);
+  border: 1.5px solid var(--accent);
+  border-radius: 4px;
+  padding: 1px 6px;
+  outline: none;
+  width: 100%;
+  min-width: 0;
+  font-family: inherit;
+  box-shadow: 0 0 0 2px var(--accent-glow);
 }
 .route-list-delete {
   width: 28px; height: 28px;

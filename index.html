@@ -58,6 +58,7 @@
       <div class="preview-scroll">
         <div class="poster" id="poster">
 
+
           <!-- Poster Header -->
           <div class="poster-header">
             <div class="poster-title" id="poster-title">Trail Name</div>
@@ -117,6 +118,13 @@
 
         </div><!-- /poster -->
       </div>
+
+      <!-- Fit to route — outside poster so it won't appear in exports -->
+      <button class="fit-fab" id="fit-fab" onclick="fitToRoute()" title="Fit map to route">
+        <i data-lucide="maximize-2" style="width:15px;height:15px;"></i>
+        Fit to route
+      </button>
+
     </section>
 
     <!-- ===== RIGHT: SETTINGS PANEL ===== -->
@@ -172,10 +180,6 @@
               <span class="zoom-label" id="zoom-label">—</span>
               <button class="zoom-btn" onclick="mapZoom(1)" title="Zoom in">
                 <i data-lucide="plus" style="width:15px;height:15px;"></i>
-              </button>
-              <button class="fit-btn" onclick="fitToRoute()" title="Fit to route">
-                <i data-lucide="maximize-2" style="width:13px;height:13px;"></i>
-                Fit
               </button>
             </div>
           </div>
