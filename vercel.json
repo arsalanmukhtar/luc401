@@ -1,5 +1,5 @@
 {
   "buildCommand": "node build.js",
   "outputDirectory": ".",
-  "installCommand": ""
+  "installCommand": "npm install"
 }
