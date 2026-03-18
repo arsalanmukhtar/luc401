@@ -20,6 +20,8 @@ const MAP_STYLES = {
 };
 
 // ── STATE ─────────────────────────────────────────────────
+let uploadStatusTimer = null;
+let routePillTimer    = null;
 let map            = null;
 let elevChart      = null;
 let routeCoords    = [];   // [[lng, lat], ...]
@@ -184,7 +186,7 @@ function renderFileList() {
       </div>
       <div class="route-list-info" onclick="loadFileFromList(${i})">
         <span class="route-list-name" id="route-name-${i}">${f.name}</span>
-        <span class="route-list-sub">Upload · ${f.pointCount.toLocaleString()} pts</span>
+        <span class="route-list-sub">Upload · ${f.pointCount.toLocaleString()} pts · ${f.distanceKm.toFixed(1)} km</span>
       </div>
       <div class="route-list-actions">
         <button class="route-name-edit-btn" onclick="startEditName(event,${i})" title="Rename">
@@ -252,6 +254,7 @@ function initMap() {
     style: MAP_STYLES.streets,
     center: [-1.548, 53.801],   // Default: Yorkshire Dales
     zoom: 10,
+    projection: 'mercator',      // Flat Mercator, not globe
     preserveDrawingBuffer: true, // Required for PNG export
     attributionControl: false,
   });
@@ -339,10 +342,26 @@ function handleGPXUpload(input) {
   if (file) processGPXFile(file);
 }
 
+function showMapLoader() {
+  document.getElementById('map-loader')?.classList.add('active');
+}
+function hideMapLoader() {
+  document.getElementById('map-loader')?.classList.remove('active');
+}
+
 function processGPXFile(file) {
   const fileName = file.name;
-  const reader   = new FileReader();
-  reader.onload  = (e) => {
+
+  // Duplicate check — same filename already in the list
+  if (uploadedFiles.some(f => f.name === fileName)) {
+    showUploadStatus('error', `"${fileName}" is already uploaded`);
+    return;
+  }
+
+  showMapLoader();                // spinner on as soon as file is chosen
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
     try {
       const parsed = parseGPX(e.target.result);
       if (parsed.coords.length < 2) throw new Error('Not enough track points');
@@ -360,14 +379,25 @@ function processGPXFile(file) {
       const pill = document.getElementById('route-pill');
       const pillText = document.getElementById('route-pill-text');
       pillText.textContent = `${routeCoords.length.toLocaleString()} pts · ${dist.toFixed(1)} km`;
+      pill.classList.remove('fading');
+      void pill.offsetWidth; // reflow to restart animation if triggered again
       pill.style.display = 'flex';
       document.getElementById('map-empty').classList.add('hidden');
+
+      // Auto-hide pill after 3 s
+      clearTimeout(routePillTimer);
+      routePillTimer = setTimeout(() => {
+        pill.classList.add('fading');
+        setTimeout(() => { pill.style.display = 'none'; }, 420);
+      }, 3000);
 
       addToFileList(fileName, parsed.coords, parsed.elevations);
       lucide.createIcons();
     } catch (err) {
       showUploadStatus('error', `Error: ${err.message}`);
       console.error(err);
+    } finally {
+      hideMapLoader();            // spinner off regardless of success/error
     }
   };
   reader.readAsText(file);
@@ -439,7 +469,25 @@ function fitToRoute() {
     if (lat < minLat) minLat = lat;
     if (lat > maxLat) maxLat = lat;
   }
-  map.fitBounds([[minLng, minLat], [maxLng, maxLat]], { padding: 80, duration: 700 });
+
+  // Sync Mapbox's internal canvas size to the current DOM layout before
+  // fitting — prevents wrong bounds when called during initial load.
+  map.resize();
+
+  const mapEl = document.getElementById('map');
+  const w     = mapEl.offsetWidth  || 600;
+  const h     = mapEl.offsetHeight || 500;
+
+  // Compute padding independently per axis so elongated routes (tall/narrow
+  // or wide/flat) always have proportional breathing room on all four sides.
+  // 15% of each dimension, floored at 90 px so markers never bleed to edge.
+  const padH = Math.max(90, Math.round(w * 0.15));
+  const padV = Math.max(90, Math.round(h * 0.15));
+
+  map.fitBounds([[minLng, minLat], [maxLng, maxLat]], {
+    padding:  { top: padV, bottom: padV, left: padH, right: padH },
+    duration: 700,
+  });
 }
 
 function renderMarkers() {
@@ -1005,8 +1053,18 @@ function setJPEGDPI(dataUrl, dpi) {
 // ── HELPERS ───────────────────────────────────────────────
 function showUploadStatus(type, msg) {
   const el = document.getElementById('upload-status');
+  el.classList.remove('fading');
+  void el.offsetWidth; // reflow to restart animation if re-triggered
   el.className = `upload-status ${type}`;
   el.textContent = msg;
+
+  clearTimeout(uploadStatusTimer);
+  if (type === 'success') {
+    uploadStatusTimer = setTimeout(() => {
+      el.classList.add('fading');
+      setTimeout(() => { el.className = 'upload-status'; }, 420);
+    }, 3000);
+  }
 }
 
 function sleep(ms) {

@@ -329,6 +329,33 @@ body {
 }
 .map-empty-state.hidden { display: none; }
 
+/* GPX loading spinner */
+.map-loader {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.45);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  border-radius: 7px;
+  z-index: 15;
+}
+.map-loader.active { display: flex; }
+[data-theme="dark"] .map-loader { background: rgba(0,0,0,0.35); }
+
+.map-loader-ring {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  border: 3px solid rgba(39,174,96,0.18);
+  border-top-color: var(--accent);
+  animation: spin-loader 0.75s linear infinite;
+}
+@keyframes spin-loader {
+  to { transform: rotate(360deg); }
+}
+
 /* Poster Elevation */
 .poster-elevation {
   height: 72px;
@@ -845,13 +872,24 @@ select.form-input { cursor: pointer; }
 }
 [data-theme="dark"] .print-size-item.active { background: var(--accent-subtle); }
 
+/* Auto-hide fade-out for upload feedback elements */
+@keyframes fade-out-slide {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(-5px); }
+}
+.upload-status.fading,
+.route-pill.fading {
+  animation: fade-out-slide 0.42s ease forwards;
+  pointer-events: none;
+}
+
 /* Added Routes list */
 .added-routes-list {
   display: flex;
   flex-direction: column;
   gap: 6px;
   max-height: 280px;
-  overflow-y: auto;
+  overflow-y: scroll;
 }
 .route-list-item {
   display: flex;
