@@ -82,6 +82,8 @@ async function persistRoutes() {
 }
 
 async function restoreRoutes() {
+  // Called from inside map.on('load') so source always exists and style is ready.
+  // No timing guards needed — just read IDB and set data directly.
   try {
     const db = await openRouteDB();
     const records = await new Promise((res, rej) => {
@@ -101,21 +103,21 @@ async function restoreRoutes() {
     routeCoords   = f.coords;
     elevData      = f.elevations;
 
-    const doRender = () => {
-      // addRouteSource is idempotent — safe even if map.on('load') already ran it
-      if (!map.getSource('route')) addRouteSource();
-      renderRoute();        // calls fitToRoute() internally → map zooms to GPX extent
-      renderElevChart();
-      computeStats();
-      document.getElementById('route-pill').style.display = 'flex';
-      document.getElementById('route-pill-text').textContent =
-        `${f.pointCount.toLocaleString()} pts · ${f.distanceKm.toFixed(1)} km`;
-      document.getElementById('map-empty').classList.add('hidden');
-      renderFileList();
-    };
+    // Source was added by addRouteSource() before restoreRoutes() was called.
+    map.getSource('route').setData({
+      type: 'Feature',
+      geometry: { type: 'LineString', coordinates: routeCoords },
+    });
+    fitToRoute();
+    renderMarkers();
+    renderElevChart();
+    computeStats();
 
-    if (map.loaded()) doRender();
-    else map.once('load', doRender);
+    document.getElementById('route-pill').style.display = 'flex';
+    document.getElementById('route-pill-text').textContent =
+      `${f.pointCount.toLocaleString()} pts · ${f.distanceKm.toFixed(1)} km`;
+    document.getElementById('map-empty').classList.add('hidden');
+    renderFileList();
   } catch (e) {
     console.warn('[IDB] restoreRoutes failed:', e);
   }
@@ -181,17 +183,17 @@ function renderFileList() {
         <i data-lucide="route" style="width:15px;height:15px;"></i>
       </div>
       <div class="route-list-info" onclick="loadFileFromList(${i})">
-        <div class="route-list-name-row">
-          <span class="route-list-name" id="route-name-${i}">${f.name}</span>
-          <button class="route-name-edit-btn" onclick="startEditName(event,${i})" title="Rename">
-            <i data-lucide="pencil" style="width:11px;height:11px;"></i>
-          </button>
-        </div>
+        <span class="route-list-name" id="route-name-${i}">${f.name}</span>
         <span class="route-list-sub">Upload · ${f.pointCount.toLocaleString()} pts</span>
       </div>
-      <button class="route-list-delete" onclick="deleteFileFromList(${i})" title="Remove">
-        <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
-      </button>`;
+      <div class="route-list-actions">
+        <button class="route-name-edit-btn" onclick="startEditName(event,${i})" title="Rename">
+          <i data-lucide="pencil" style="width:13px;height:13px;"></i>
+        </button>
+        <button class="route-list-delete" onclick="deleteFileFromList(${i})" title="Remove">
+          <i data-lucide="trash-2" style="width:13px;height:13px;"></i>
+        </button>
+      </div>`;
     list.appendChild(item);
   });
   lucide.createIcons();
@@ -199,9 +201,8 @@ function renderFileList() {
 
 function startEditName(event, index) {
   event.stopPropagation();
-  const nameSpan  = document.getElementById(`route-name-${index}`);
-  const editBtn   = nameSpan.nextElementSibling;
-  const original  = uploadedFiles[index].name;
+  const nameSpan = document.getElementById(`route-name-${index}`);
+  const original = uploadedFiles[index].name;
 
   const input = document.createElement('input');
   input.className = 'route-name-input';
@@ -223,7 +224,6 @@ function startEditName(event, index) {
   });
 
   nameSpan.replaceWith(input);
-  editBtn.style.display = 'none';
   input.focus();
   input.select();
 }
@@ -240,7 +240,6 @@ document.addEventListener('DOMContentLoaded', () => {
   initMap();
   initElevChart();
   initDragDrop();
-  restoreRoutes();
   lucide.createIcons();
 });
 
@@ -262,9 +261,10 @@ function initMap() {
   map.on('zoom', updateZoomLabel);
   map.on('load', () => {
     updateZoomLabel();
-    addRouteSource();
+    addRouteSource();          // source + layer always exist before restore runs
     setTimeout(() => map.resize(), 50);
     loadBasemapThumbnails();
+    restoreRoutes();           // IDB read happens here; source is guaranteed ready
   });
 
   window.addEventListener('resize', () => map && map.resize());
@@ -412,7 +412,11 @@ function fillNulls(arr) {
 
 // ── ROUTE RENDERING ───────────────────────────────────────
 function renderRoute() {
-  if (!map.loaded()) { map.once('load', renderRoute); return; }
+  // isStyleLoaded() is true as soon as the style fires 'load'.
+  // map.loaded() additionally waits for tiles, causing it to be false
+  // during the 'load' callback — making map.once('load', renderRoute)
+  // register a handler that never fires (event already past).
+  if (!map.isStyleLoaded()) { map.once('style.load', renderRoute); return; }
 
   const src = map.getSource('route');
   if (src) {

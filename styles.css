@@ -898,28 +898,27 @@ select.form-input { cursor: pointer; }
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  display: block;
 }
 .route-list-sub {
   font-size: 10px;
   color: var(--text-muted);
 }
-.route-list-name-row {
+.route-list-actions {
   display: flex;
   align-items: center;
-  gap: 4px;
-  min-width: 0;
+  gap: 2px;
+  flex-shrink: 0;
 }
 .route-name-edit-btn {
+  width: 26px; height: 26px;
+  display: flex; align-items: center; justify-content: center;
   background: none;
   border: none;
-  padding: 2px 3px;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   color: var(--text-muted);
   cursor: pointer;
   opacity: 0;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
   transition: opacity var(--transition), color var(--transition), background var(--transition);
 }
 .route-list-item:hover .route-name-edit-btn,
@@ -940,7 +939,7 @@ select.form-input { cursor: pointer; }
   box-shadow: 0 0 0 2px var(--accent-glow);
 }
 .route-list-delete {
-  width: 28px; height: 28px;
+  width: 26px; height: 26px;
   display: flex; align-items: center; justify-content: center;
   background: none;
   border: none;
