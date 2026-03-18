@@ -15,10 +15,10 @@
   <!-- html2canvas -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
-  <!-- Inter font (UI only — poster title keeps its own serif/custom font) -->
+  <!-- Inter UI font + poster title fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Bebas+Neue&family=Playfair+Display:wght@700;800&family=Oswald:wght@600;700&family=Cinzel:wght@700;800&family=Montserrat:wght@800;900&family=Raleway:wght@700;800&family=Dancing+Script:wght@700&family=Abril+Fatface&family=Fjalla+One&family=Permanent+Marker&family=Libre+Baskerville:wght@700&family=Exo+2:wght@800;900&display=swap" rel="stylesheet" />
 
   <!-- Lucide Icons (same icon set as react-icons/lucide-react, web CDN version) -->
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
@@ -439,20 +439,99 @@
           <div class="card">
             <div class="card-label">Typography</div>
             <div class="form-group">
-              <label class="form-label">Title Font</label>
-              <select class="form-input" onchange="setTitleFont(this.value)">
-                <option value="Georgia, 'Times New Roman', serif">Classic Serif (Georgia)</option>
-                <option value="'Palatino Linotype', Palatino, serif">Palatino</option>
-                <option value="'Book Antiqua', Palatino, serif">Book Antiqua</option>
-                <option value="system-ui, -apple-system, sans-serif">Modern Sans</option>
-                <option value="'Trebuchet MS', sans-serif">Trebuchet</option>
-                <option value="'Courier New', monospace">Monospace</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Title Size <span id="title-size-val">28</span>px</label>
-              <input type="range" min="16" max="52" value="28" class="range-input"
-                oninput="setTitleSize(this.value); document.getElementById('title-size-val').textContent=this.value" />
+              <div class="typo-font-header">
+                <span class="form-label">Title Font</span>
+                <input type="range" min="16" max="52" value="28" class="range-input range-slim"
+                  oninput="setTitleSize(this.value); document.getElementById('title-size-val').textContent=this.value" />
+                <span class="typo-size-badge"><span id="title-size-val">28</span>px</span>
+              </div>
+              <div class="font-picker-grid" id="font-picker">
+
+                <div class="font-card active" data-font="Georgia, 'Times New Roman', serif" onclick="setTitleFont(this.dataset.font, this)">
+                  <span class="font-preview" style="font-family:Georgia,serif;">Trail</span>
+                  <span class="font-name">Georgia</span>
+                  <span class="font-cat">Classic Serif</span>
+                </div>
+
+                <div class="font-card" data-font="'Playfair Display', Georgia, serif" onclick="setTitleFont(this.dataset.font, this)">
+                  <span class="font-preview" style="font-family:'Playfair Display',serif;">Trail</span>
+                  <span class="font-name">Playfair</span>
+                  <span class="font-cat">Elegant Serif</span>
+                </div>
+
+                <div class="font-card" data-font="'Cinzel', Georgia, serif" onclick="setTitleFont(this.dataset.font, this)">
+                  <span class="font-preview" style="font-family:'Cinzel',serif;">TRAIL</span>
+                  <span class="font-name">Cinzel</span>
+                  <span class="font-cat">Roman Epic</span>
+                </div>
+
+                <div class="font-card" data-font="'Libre Baskerville', Georgia, serif" onclick="setTitleFont(this.dataset.font, this)">
+                  <span class="font-preview" style="font-family:'Libre Baskerville',serif;">Trail</span>
+                  <span class="font-name">Baskerville</span>
+                  <span class="font-cat">Book Serif</span>
+                </div>
+
+                <div class="font-card" data-font="'Abril Fatface', Georgia, serif" onclick="setTitleFont(this.dataset.font, this)">
+                  <span class="font-preview" style="font-family:'Abril Fatface',serif;">Trail</span>
+                  <span class="font-name">Abril</span>
+                  <span class="font-cat">Bold Display</span>
+                </div>
+
+                <div class="font-card" data-font="'Bebas Neue', Impact, sans-serif" onclick="setTitleFont(this.dataset.font, this)">
+                  <span class="font-preview" style="font-family:'Bebas Neue',sans-serif;">TRAIL</span>
+                  <span class="font-name">Bebas Neue</span>
+                  <span class="font-cat">Adventure</span>
+                </div>
+
+                <div class="font-card" data-font="'Oswald', sans-serif" onclick="setTitleFont(this.dataset.font, this)">
+                  <span class="font-preview" style="font-family:'Oswald',sans-serif;">TRAIL</span>
+                  <span class="font-name">Oswald</span>
+                  <span class="font-cat">Condensed Bold</span>
+                </div>
+
+                <div class="font-card" data-font="'Fjalla One', sans-serif" onclick="setTitleFont(this.dataset.font, this)">
+                  <span class="font-preview" style="font-family:'Fjalla One',sans-serif;">TRAIL</span>
+                  <span class="font-name">Fjalla One</span>
+                  <span class="font-cat">Rugged Sans</span>
+                </div>
+
+                <div class="font-card" data-font="'Montserrat', sans-serif" onclick="setTitleFont(this.dataset.font, this)">
+                  <span class="font-preview" style="font-family:'Montserrat',sans-serif;font-weight:900;">Trail</span>
+                  <span class="font-name">Montserrat</span>
+                  <span class="font-cat">Modern Bold</span>
+                </div>
+
+                <div class="font-card" data-font="'Raleway', sans-serif" onclick="setTitleFont(this.dataset.font, this)">
+                  <span class="font-preview" style="font-family:'Raleway',sans-serif;font-weight:800;">Trail</span>
+                  <span class="font-name">Raleway</span>
+                  <span class="font-cat">Elegant Sans</span>
+                </div>
+
+                <div class="font-card" data-font="'Exo 2', sans-serif" onclick="setTitleFont(this.dataset.font, this)">
+                  <span class="font-preview" style="font-family:'Exo 2',sans-serif;font-weight:900;">Trail</span>
+                  <span class="font-name">Exo 2</span>
+                  <span class="font-cat">Futuristic</span>
+                </div>
+
+                <div class="font-card" data-font="'Dancing Script', cursive" onclick="setTitleFont(this.dataset.font, this)">
+                  <span class="font-preview" style="font-family:'Dancing Script',cursive;">Trail</span>
+                  <span class="font-name">Dancing</span>
+                  <span class="font-cat">Handwritten</span>
+                </div>
+
+                <div class="font-card" data-font="'Permanent Marker', cursive" onclick="setTitleFont(this.dataset.font, this)">
+                  <span class="font-preview" style="font-family:'Permanent Marker',cursive;">Trail</span>
+                  <span class="font-name">Marker</span>
+                  <span class="font-cat">Hand-drawn</span>
+                </div>
+
+                <div class="font-card" data-font="'Courier New', 'Courier', monospace" onclick="setTitleFont(this.dataset.font, this)">
+                  <span class="font-preview" style="font-family:'Courier New',monospace;">Trail</span>
+                  <span class="font-name">Courier</span>
+                  <span class="font-cat">Typewriter</span>
+                </div>
+
+              </div>
             </div>
           </div>
 

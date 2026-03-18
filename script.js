@@ -888,8 +888,11 @@ function setDashGap(val) {
 }
 
 // ── TYPOGRAPHY ────────────────────────────────────────────
-function setTitleFont(family) {
+function setTitleFont(family, el) {
   document.getElementById('poster-title').style.fontFamily = family;
+  // Update active state on the visual font picker
+  document.querySelectorAll('.font-card').forEach(c => c.classList.remove('active'));
+  if (el) el.classList.add('active');
 }
 
 function setTitleSize(px) {

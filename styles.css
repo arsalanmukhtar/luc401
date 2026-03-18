@@ -817,6 +817,53 @@ body {
   accent-color: var(--accent);
   cursor: pointer;
 }
+.range-slim {
+  height: 4px;
+  appearance: none;
+  -webkit-appearance: none;
+  background: var(--border-soft);
+  border-radius: 2px;
+  outline: none;
+  padding: 0;
+  margin: 2px 0 0;
+}
+.range-slim::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+}
+.range-slim::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: none;
+  cursor: pointer;
+}
+.typo-font-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.typo-font-header .form-label {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.typo-font-header .range-slim {
+  flex: 1;
+  margin: 0;
+}
+.typo-size-badge {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
 
 /* Form */
 .form-group { display: flex; flex-direction: column; gap: 5px; }
@@ -1179,6 +1226,72 @@ select.form-input { cursor: pointer; }
 ::-webkit-scrollbar-thumb { background: var(--border-soft); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
+/* ── Font Picker Grid ───────────────────────────── */
+.font-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+  /* Show ~3 rows (6 cards) before scrolling */
+  max-height: 192px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.font-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 6px 5px;
+  border: 1.5px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  cursor: pointer;
+  transition: border-color var(--transition), background var(--transition),
+              box-shadow var(--transition);
+  text-align: center;
+  min-height: 58px;
+}
+.font-card:hover {
+  border-color: var(--accent);
+  background: var(--accent-subtle);
+}
+.font-card.active {
+  border-color: var(--accent);
+  background: var(--accent-subtle);
+  box-shadow: 0 0 0 2px var(--accent-glow);
+}
+.font-preview {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  display: block;
+}
+.font-name {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-family: 'Inter', system-ui, sans-serif;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  line-height: 1.3;
+}
+.font-cat {
+  font-size: 7.5px;
+  color: var(--text-muted);
+  font-family: 'Inter', system-ui, sans-serif;
+  white-space: nowrap;
+  line-height: 1.3;
+}
+.font-card.active .font-name { color: var(--accent); }
+
 /* ── Mobile-only elements — hidden on desktop ────── */
 .mobile-bottom-nav { display: none; }
 .sheet-backdrop    { display: none; }
@@ -1234,8 +1347,8 @@ select.form-input { cursor: pointer; }
   .poster {
     width: 100%;
     max-width: 100%;
-    /* header(44) + mobile-nav(56) + top-pad(10) + bottom-pad(10) */
-    height: calc(100vh - 44px - 56px - 20px);
+    /* header(44) + mobile-nav(56) + top-pad(10) + fit-fab-area(52) + gap(10) */
+    height: calc(100vh - 44px - 56px - 10px - 52px - 10px);
     min-height: unset;
     border-radius: 10px;
     padding: 14px 14px 10px;
@@ -1255,7 +1368,7 @@ select.form-input { cursor: pointer; }
 
   /* ── Fit FAB ──────────────────────────────────── */
   .fit-fab {
-    bottom: calc(56px + 10px);
+    bottom: calc(56px + 8px);  /* 8px gap above nav bar */
     padding: 7px 16px;
     font-size: 11.5px;
     gap: 6px;
