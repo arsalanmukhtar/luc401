@@ -649,6 +649,13 @@
 
       <!-- Export Dropdown -->
       <div class="export-bar">
+        <!-- Export progress indicator — shown while file is being prepared -->
+        <div class="export-progress" id="export-progress">
+          <div class="export-progress-track">
+            <div class="export-progress-fill"></div>
+          </div>
+          <span class="export-progress-label">Preparing your file…</span>
+        </div>
         <div class="export-dropdown" id="export-dropdown">
           <button class="export-trigger" id="export-trigger" onclick="toggleExportMenu()">
             <div class="export-trigger-left">

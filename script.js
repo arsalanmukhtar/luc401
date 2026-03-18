@@ -1018,8 +1018,10 @@ async function exportAs(format) {
   exportMenuOpen = false;
   document.getElementById('export-menu').classList.remove('open');
 
-  const trigger = document.getElementById('export-trigger');
+  const trigger  = document.getElementById('export-trigger');
+  const progress = document.getElementById('export-progress');
   trigger.disabled = true;
+  if (progress) progress.classList.add('active');
 
   try {
     const poster  = document.getElementById('poster');
@@ -1101,6 +1103,7 @@ async function exportAs(format) {
     alert('Export failed: ' + err.message);
   } finally {
     trigger.disabled = false;
+    if (progress) progress.classList.remove('active');
     lucide.createIcons();
   }
 }
