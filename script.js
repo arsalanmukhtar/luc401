@@ -115,9 +115,7 @@ async function restoreRoutes() {
     renderElevChart();
     computeStats();
 
-    document.getElementById('route-pill').style.display = 'flex';
-    document.getElementById('route-pill-text').textContent =
-      `${f.pointCount.toLocaleString()} pts · ${f.distanceKm.toFixed(1)} km`;
+    document.getElementById('route-pill').style.display = 'none'; // pill is upload-only feedback
     document.getElementById('map-empty').classList.add('hidden');
     renderFileList();
   } catch (e) {
@@ -145,9 +143,7 @@ function loadFileFromList(index) {
   renderRoute();
   renderElevChart();
   computeStats();
-  const pillText = document.getElementById('route-pill-text');
-  pillText.textContent = `${f.pointCount.toLocaleString()} pts · ${f.distanceKm.toFixed(1)} km`;
-  document.getElementById('route-pill').style.display = 'flex';
+  document.getElementById('route-pill').style.display = 'none'; // pill is upload-only feedback
   document.getElementById('map-empty').classList.add('hidden');
   sessionStorage.setItem('ft_activeIdx', String(index));
   renderFileList();
@@ -258,8 +254,6 @@ function initMap() {
     preserveDrawingBuffer: true, // Required for PNG export
     attributionControl: false,
   });
-
-  map.addControl(new mapboxgl.AttributionControl({ compact: true }), 'bottom-left');
 
   map.on('zoom', updateZoomLabel);
   map.on('load', () => {
@@ -481,8 +475,8 @@ function fitToRoute() {
   // Compute padding independently per axis so elongated routes (tall/narrow
   // or wide/flat) always have proportional breathing room on all four sides.
   // 15% of each dimension, floored at 90 px so markers never bleed to edge.
-  const padH = Math.max(90, Math.round(w * 0.15));
-  const padV = Math.max(90, Math.round(h * 0.15));
+  const padH = Math.max(55, Math.round(w * 0.10));
+  const padV = Math.max(55, Math.round(h * 0.10));
 
   map.fitBounds([[minLng, minLat], [maxLng, maxLat]], {
     padding:  { top: padV, bottom: padV, left: padH, right: padH },
@@ -810,11 +804,14 @@ function toggleOption(key) {
 function toggleElevationUI() {
   const el = document.getElementById('elevation-container');
   el.style.display = state.showElevation ? '' : 'none';
+  // Poster-map is flex:1 — it fills the freed space, but Mapbox needs resize() signal
+  setTimeout(() => map && map.resize(), 50);
 }
 
 function toggleBrandUI() {
   const el = document.querySelector('.poster-footer-brand');
   if (el) el.style.display = state.showBrand ? '' : 'none';
+  setTimeout(() => map && map.resize(), 50);
 }
 
 function applyDash() {
@@ -1059,12 +1056,10 @@ function showUploadStatus(type, msg) {
   el.textContent = msg;
 
   clearTimeout(uploadStatusTimer);
-  if (type === 'success') {
-    uploadStatusTimer = setTimeout(() => {
-      el.classList.add('fading');
-      setTimeout(() => { el.className = 'upload-status'; }, 420);
-    }, 3000);
-  }
+  uploadStatusTimer = setTimeout(() => {
+    el.classList.add('fading');
+    setTimeout(() => { el.className = 'upload-status'; }, 420);
+  }, 3000);
 }
 
 function sleep(ms) {

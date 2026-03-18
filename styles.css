@@ -552,13 +552,13 @@ body {
   color: #854d0e;
   border: 1.5px solid #fde047;
 }
-.upload-status.error { display: block; background: #fde8e8; color: #a00; }
+.upload-status.error { display: block; background: #fde8e8; color: #a00; border: 1.5px solid #c0392b; }
 [data-theme="dark"] .upload-status.success {
   background: #2d2200;
   color: #fde047;
   border: 1.5px solid #78350f;
 }
-[data-theme="dark"] .upload-status.error { background: #2d1010; color: #e06060; }
+[data-theme="dark"] .upload-status.error { background: #2d1010; color: #e06060; border: 1.5px solid #7a1f1f; }
 
 /* Route Pill */
 .route-pill {
@@ -890,6 +890,7 @@ select.form-input { cursor: pointer; }
   gap: 6px;
   max-height: 280px;
   overflow-y: scroll;
+  padding-right: 6px;
 }
 .route-list-item {
   display: flex;
@@ -1115,15 +1116,40 @@ select.form-input { cursor: pointer; }
   letter-spacing: 0.4px;
   white-space: nowrap;
   flex-shrink: 0;
+  line-height: 1;
 }
 [data-theme="dark"] .export-pro-badge { background: #2e1f00; color: #f59e0b; }
 
-/* Mapbox attribution — keep legally but minimise */
-.mapboxgl-ctrl-logo { display: none !important; }
-.mapboxgl-ctrl-attrib {
-  font-size: 8px !important;
-  opacity: 0.35 !important;
+/* Pro lock badge (inline with toggle label) */
+.pro-lock-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: #fff7ed;
+  color: #7a4b00;
+  padding: 1px 5px 1px 4px;
+  border-radius: 10px;
+  font-size: 8.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+  vertical-align: middle;
+  margin-left: 5px;
+  line-height: 1;
 }
+[data-theme="dark"] .pro-lock-badge { background: #2e1f00; color: #f59e0b; }
+
+/* Locked toggle — always on, not interactive */
+.toggle-locked {
+  opacity: 0.65;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Hide Mapbox attribution entirely */
+.mapboxgl-ctrl-attrib,
+.mapboxgl-ctrl-logo { display: none !important; }
 
 /* Scrollbar */
 ::-webkit-scrollbar { width: 5px; }
