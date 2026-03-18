@@ -542,7 +542,13 @@
 
           <div class="card">
             <div class="card-label">Print Size</div>
-            <div class="print-size-list">
+            <div class="size-search-wrap">
+              <i data-lucide="search" style="width:13px;height:13px;flex-shrink:0;"></i>
+              <input type="text" class="size-search-input" id="size-search"
+                placeholder="Search size…"
+                oninput="filterSizes(this.value)" />
+            </div>
+            <div class="print-size-list" id="print-size-list">
 
               <div class="print-size-item active" data-size="digital" onclick="setPosterSize('digital')">
                 <div class="print-size-left">
@@ -574,6 +580,22 @@
                   <span class="print-size-desc">40×60 cm / 16×24"</span>
                 </div>
                 <span class="print-size-price">€65.00</span>
+              </div>
+
+              <div class="print-size-item" data-size="xlarge" onclick="setPosterSize('xlarge')">
+                <div class="print-size-left">
+                  <span class="print-size-name">X-Large</span>
+                  <span class="print-size-desc">50×75 cm / 20×30"</span>
+                </div>
+                <span class="print-size-price">€75.00</span>
+              </div>
+
+              <div class="print-size-item" data-size="a5" onclick="setPosterSize('a5')">
+                <div class="print-size-left">
+                  <span class="print-size-name">A5</span>
+                  <span class="print-size-desc">148×210 mm / 5.8×8.3"</span>
+                </div>
+                <span class="print-size-price">€18.00</span>
               </div>
 
               <div class="print-size-item" data-size="a4" onclick="setPosterSize('a4')">
@@ -608,6 +630,60 @@
                 <span class="print-size-price">€80.00</span>
               </div>
 
+              <div class="print-size-item" data-size="a0" onclick="setPosterSize('a0')">
+                <div class="print-size-left">
+                  <span class="print-size-name">A0</span>
+                  <span class="print-size-desc">841×1189 mm / 33.1×46.8"</span>
+                </div>
+                <span class="print-size-price">€110.00</span>
+              </div>
+
+              <div class="print-size-item" data-size="us-letter" onclick="setPosterSize('us-letter')">
+                <div class="print-size-left">
+                  <span class="print-size-name">US Letter</span>
+                  <span class="print-size-desc">216×279 mm / 8.5×11"</span>
+                </div>
+                <span class="print-size-price">€25.00</span>
+              </div>
+
+              <div class="print-size-item" data-size="us-legal" onclick="setPosterSize('us-legal')">
+                <div class="print-size-left">
+                  <span class="print-size-name">US Legal</span>
+                  <span class="print-size-desc">216×356 mm / 8.5×14"</span>
+                </div>
+                <span class="print-size-price">€30.00</span>
+              </div>
+
+              <div class="print-size-item" data-size="square-sm" onclick="setPosterSize('square-sm')">
+                <div class="print-size-left">
+                  <span class="print-size-name">Square S</span>
+                  <span class="print-size-desc">30×30 cm / 12×12"</span>
+                </div>
+                <span class="print-size-price">€38.00</span>
+              </div>
+
+              <div class="print-size-item" data-size="square-lg" onclick="setPosterSize('square-lg')">
+                <div class="print-size-left">
+                  <span class="print-size-name">Square L</span>
+                  <span class="print-size-desc">50×50 cm / 20×20"</span>
+                </div>
+                <span class="print-size-price">€70.00</span>
+              </div>
+
+              <div class="print-size-item" data-size="panoramic" onclick="setPosterSize('panoramic')">
+                <div class="print-size-left">
+                  <span class="print-size-name">Panoramic</span>
+                  <span class="print-size-desc">30×90 cm / 12×36"</span>
+                </div>
+                <span class="print-size-price">€85.00</span>
+              </div>
+
+              <div class="print-size-item size-no-results" id="size-no-results" style="display:none;">
+                <div class="print-size-left">
+                  <span class="print-size-name" style="font-weight:500;color:var(--text-muted);">No sizes match your search</span>
+                </div>
+              </div>
+
             </div>
           </div>
 
@@ -634,7 +710,7 @@
           <button class="export-trigger" id="export-trigger" onclick="toggleExportMenu()">
             <div class="export-trigger-left">
               <i data-lucide="download" style="width:16px;height:16px;"></i>
-              <span>Export graphic</span>
+              <span>EXPORT MAP LAYOUT</span>
             </div>
             <i data-lucide="chevron-down" id="export-chevron" style="width:16px;height:16px;transition:transform 0.2s;"></i>
           </button>

@@ -909,6 +909,21 @@ function setPosterSize(size) {
     s.classList.toggle('active', s.dataset.size === size));
 }
 
+function filterSizes(query) {
+  const q = query.trim().toLowerCase();
+  const items = document.querySelectorAll('.print-size-item[data-size]');
+  let visible = 0;
+  items.forEach(item => {
+    const name = item.querySelector('.print-size-name').textContent.toLowerCase();
+    const desc = item.querySelector('.print-size-desc').textContent.toLowerCase();
+    const match = !q || name.includes(q) || desc.includes(q);
+    item.style.display = match ? '' : 'none';
+    if (match) visible++;
+  });
+  const noResults = document.getElementById('size-no-results');
+  if (noResults) noResults.style.display = visible === 0 ? '' : 'none';
+}
+
 // ── THEME TOGGLE ──────────────────────────────────────────
 function toggleTheme() {
   const html   = document.documentElement;
