@@ -27,6 +27,17 @@ let elevData       = [];   // [meters, ...]
 let routeColor     = '#e63946';
 let startMarker    = null;
 let endMarker      = null;
+let markerSize     = 12;
+let dashGap        = 2;
+let dashPatternKey = 'short';
+
+// Returns mapbox line-dasharray for current pattern + gap
+const DASH_PATTERNS = {
+  'short':    (g) => [3,   g],
+  'long':     (g) => [8,   g],
+  'dot':      (g) => [0.5, g],
+  'dash-dot': (g) => [6,   g, 1, g],
+};
 
 const state = {
   showMarkers:   true,
@@ -34,6 +45,112 @@ const state = {
   showBrand:     true,
   isDash:        false,
 };
+
+// ── GPX FILE LIST ─────────────────────────────────────────
+const uploadedFiles  = [];   // [{name, coords, elevations, pointCount, distanceKm}]
+let   activeFileIdx  = -1;
+const SESSION_KEY    = 'framedTrails_routes';
+
+function addToFileList(name, coords, elevations) {
+  const cumDist   = buildCumDist(coords);
+  const distanceKm = cumDist[cumDist.length - 1] || 0;
+  uploadedFiles.push({ name, coords, elevations, pointCount: coords.length, distanceKm });
+  activeFileIdx = uploadedFiles.length - 1;
+  saveFilesToSession();
+  renderFileList();
+}
+
+function loadFileFromList(index) {
+  if (index < 0 || index >= uploadedFiles.length) return;
+  activeFileIdx = index;
+  const f = uploadedFiles[index];
+  routeCoords = f.coords;
+  elevData    = f.elevations;
+  renderRoute();
+  renderElevChart();
+  computeStats();
+  const pillText = document.getElementById('route-pill-text');
+  pillText.textContent = `${f.pointCount.toLocaleString()} pts · ${f.distanceKm.toFixed(1)} km`;
+  document.getElementById('route-pill').style.display = 'flex';
+  document.getElementById('map-empty').classList.add('hidden');
+  renderFileList();
+}
+
+function deleteFileFromList(index) {
+  uploadedFiles.splice(index, 1);
+  if (!uploadedFiles.length) {
+    activeFileIdx = -1;
+    routeCoords = []; elevData = [];
+    if (map.getSource('route')) map.getSource('route').setData(emptyGeoJSON());
+    if (startMarker) { startMarker.remove(); startMarker = null; }
+    if (endMarker)   { endMarker.remove();   endMarker   = null; }
+    elevChart.data.labels = []; elevChart.data.datasets[0].data = []; elevChart.update('none');
+    document.getElementById('route-pill').style.display = 'none';
+    document.getElementById('map-empty').classList.remove('hidden');
+  } else {
+    loadFileFromList(Math.min(index, uploadedFiles.length - 1));
+  }
+  saveFilesToSession();
+  renderFileList();
+}
+
+function renderFileList() {
+  const card = document.getElementById('added-routes-card');
+  const list = document.getElementById('added-routes-list');
+  if (!card || !list) return;
+  card.style.display = uploadedFiles.length ? 'flex' : 'none';
+  list.innerHTML = '';
+  uploadedFiles.forEach((f, i) => {
+    const item = document.createElement('div');
+    item.className = 'route-list-item' + (i === activeFileIdx ? ' active' : '');
+    item.innerHTML = `
+      <div class="route-list-icon">
+        <i data-lucide="route" style="width:15px;height:15px;"></i>
+      </div>
+      <div class="route-list-info" onclick="loadFileFromList(${i})">
+        <span class="route-list-name">${f.name}</span>
+        <span class="route-list-sub">Upload · ${f.pointCount.toLocaleString()} pts</span>
+      </div>
+      <button class="route-list-delete" onclick="deleteFileFromList(${i})" title="Remove">
+        <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
+      </button>`;
+    list.appendChild(item);
+  });
+  lucide.createIcons();
+}
+
+function saveFilesToSession() {
+  try {
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify(
+      uploadedFiles.map(f => ({ name: f.name, coords: f.coords, elevations: f.elevations,
+                                 pointCount: f.pointCount, distanceKm: f.distanceKm }))
+    ));
+  } catch (e) {
+    console.warn('sessionStorage quota exceeded — route list not persisted:', e);
+  }
+}
+
+function loadFilesFromSession() {
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY);
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    if (!data.length) return;
+    data.forEach(f => uploadedFiles.push(f));
+    activeFileIdx = 0;
+    const f = uploadedFiles[0];
+    routeCoords = f.coords; elevData = f.elevations;
+    // defer until map is loaded
+    map.once('load', () => { renderRoute(); renderElevChart(); computeStats(); });
+    document.getElementById('route-pill').style.display = 'flex';
+    document.getElementById('route-pill-text').textContent =
+      `${f.pointCount.toLocaleString()} pts · ${f.distanceKm.toFixed(1)} km`;
+    document.getElementById('map-empty').classList.add('hidden');
+    renderFileList();
+  } catch (e) {
+    console.warn('Could not restore session routes:', e);
+  }
+}
 
 // ── INIT ──────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
@@ -46,6 +163,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initMap();
   initElevChart();
   initDragDrop();
+  loadFilesFromSession();
   lucide.createIcons();
 });
 
@@ -145,8 +263,9 @@ function handleGPXUpload(input) {
 }
 
 function processGPXFile(file) {
-  const reader = new FileReader();
-  reader.onload = (e) => {
+  const fileName = file.name;
+  const reader   = new FileReader();
+  reader.onload  = (e) => {
     try {
       const parsed = parseGPX(e.target.result);
       if (parsed.coords.length < 2) throw new Error('Not enough track points');
@@ -158,17 +277,16 @@ function processGPXFile(file) {
       renderElevChart();
       computeStats();
 
-      // UI feedback
+      const dist = totalDistanceKm();
       showUploadStatus('success', `✓ ${routeCoords.length.toLocaleString()} points loaded`);
 
       const pill = document.getElementById('route-pill');
       const pillText = document.getElementById('route-pill-text');
-      pillText.textContent = `${routeCoords.length.toLocaleString()} pts · ${totalDistanceKm().toFixed(1)} km`;
+      pillText.textContent = `${routeCoords.length.toLocaleString()} pts · ${dist.toFixed(1)} km`;
       pill.style.display = 'flex';
-
-      // Hide map empty state
       document.getElementById('map-empty').classList.add('hidden');
 
+      addToFileList(fileName, parsed.coords, parsed.elevations);
       lucide.createIcons();
     } catch (err) {
       showUploadStatus('error', `Error: ${err.message}`);
@@ -259,10 +377,12 @@ function renderMarkers() {
 
 function makeMarkerEl(color) {
   const el = document.createElement('div');
+  const s  = markerSize;
+  const b  = Math.max(1.5, s * 0.2); // border scales with size
   el.style.cssText = `
-    width:12px;height:12px;
+    width:${s}px;height:${s}px;
     background:${color};
-    border:2.5px solid #fff;
+    border:${b}px solid #fff;
     border-radius:50%;
     box-shadow:0 1px 5px rgba(0,0,0,0.4);
   `;
@@ -464,6 +584,8 @@ function setMapStyle(styleName) {
 function setRouteColor(color, el) {
   routeColor = color;
   document.getElementById('custom-color').value = color;
+  const swatch = document.getElementById('custom-color-swatch');
+  if (swatch) swatch.style.background = color;
 
   document.querySelectorAll('#route-color-swatches .color-dot').forEach(d =>
     d.classList.remove('active'));
@@ -568,9 +690,30 @@ function toggleBrandUI() {
 
 function applyDash() {
   if (!map.getLayer('route-line')) return;
-  // line-dasharray is a paint property, not layout
-  map.setPaintProperty('route-line', 'line-dasharray',
-    state.isDash ? [3, 2] : [1, 0]);
+  const arr = state.isDash
+    ? (DASH_PATTERNS[dashPatternKey] || DASH_PATTERNS['short'])(dashGap)
+    : [1, 0];
+  map.setPaintProperty('route-line', 'line-dasharray', arr);
+}
+
+// ── MARKER SIZE ───────────────────────────────────────────
+function setMarkerSize(size) {
+  markerSize = Number(size);
+  if (state.showMarkers && routeCoords.length) renderMarkers();
+}
+
+// ── DASH PATTERN ──────────────────────────────────────────
+function setDashPattern(pattern) {
+  dashPatternKey = pattern;
+  document.querySelectorAll('.dash-pattern-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.pattern === pattern));
+  applyDash();
+}
+
+function setDashGap(val) {
+  dashGap = Number(val);
+  document.getElementById('dash-gap-val').textContent = val;
+  applyDash();
 }
 
 // ── TYPOGRAPHY ────────────────────────────────────────────

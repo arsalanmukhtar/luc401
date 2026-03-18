@@ -473,9 +473,9 @@ body {
   padding: 7px 10px;
   border-radius: var(--radius-sm);
 }
-.upload-status.success { display: block; background: #d8f3dc; color: #1b4332; }
+.upload-status.success { display: block; background: #fef9c3; color: #854d0e; }
 .upload-status.error   { display: block; background: #fde8e8; color: #a00; }
-[data-theme="dark"] .upload-status.success { background: #1a3328; color: #74c69d; }
+[data-theme="dark"] .upload-status.success { background: #2d2200; color: #fde047; }
 [data-theme="dark"] .upload-status.error   { background: #2d1010; color: #e06060; }
 
 /* Route Pill */
@@ -626,13 +626,85 @@ body {
   gap: 10px;
   margin-top: 4px;
 }
-.color-picker {
-  width: 38px; height: 28px;
-  padding: 2px;
-  border: 1px solid var(--border-input);
-  border-radius: var(--radius-sm);
+
+/* Custom color pill button */
+.custom-color-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 11px 5px 7px;
+  border: 1.5px solid var(--border-input);
+  border-radius: 20px;
   background: var(--bg-input);
   cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  transition: border-color var(--transition), background var(--transition), color var(--transition);
+  position: relative;
+  overflow: hidden;
+  user-select: none;
+}
+.custom-color-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-subtle);
+}
+.custom-color-swatch {
+  width: 15px; height: 15px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(0,0,0,0.12);
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.custom-color-label { line-height: 1; }
+.custom-color-btn input[type="color"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+}
+
+/* Card divider */
+.card-divider {
+  height: 1px;
+  background: var(--border-soft);
+  margin: 2px 0;
+}
+
+/* Dash pattern row */
+.dash-pattern-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+.dash-pattern-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 7px 4px;
+  border: 1.5px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  transition: border-color var(--transition), color var(--transition), background var(--transition);
+}
+.dash-pattern-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.dash-pattern-btn.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-subtle);
 }
 
 /* Range Input */
@@ -717,6 +789,78 @@ select.form-input { cursor: pointer; }
   white-space: nowrap;
 }
 [data-theme="dark"] .print-size-item.active { background: var(--accent-subtle); }
+
+/* Added Routes list */
+.added-routes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+.route-list-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border: 1.5px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  transition: border-color var(--transition), background var(--transition);
+  cursor: default;
+}
+.route-list-item:hover { border-color: var(--accent); }
+.route-list-item.active {
+  border-color: var(--accent);
+  background: var(--accent-subtle);
+}
+.route-list-icon {
+  width: 30px; height: 30px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.route-list-item.active .route-list-icon {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.route-list-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  cursor: pointer;
+}
+.route-list-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.route-list-sub {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+.route-list-delete {
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background var(--transition), color var(--transition);
+}
+.route-list-delete:hover { background: #fde8e8; color: #c0392b; }
+[data-theme="dark"] .route-list-delete:hover { background: #2d1010; color: #e06060; }
 
 /* Hint text */
 .hint-text { font-size: 11px; color: var(--text-hint); line-height: 1.5; }
