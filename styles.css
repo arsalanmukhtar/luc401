@@ -250,24 +250,23 @@ body {
   align-items: center;
   justify-content: center;
   width: 100%;
-  /* ensures panel fills available height so poster can stretch */
-  min-height: calc(100vh - 52px - 56px - 44px);
+  min-height: 0;
 }
 
 /* ── Poster ──────────────────────────────────────────────── */
 .poster {
   background: var(--poster-bg);
-  width: 600px;
-  /* panel padding: 28px top + 72px bottom; subtract both from available height */
-  height: calc(100vh - 52px - 56px - 44px);
-  min-height: 600px;
+  width: clamp(360px, 600px, 100%);
+  /* fill available height minus header + panel padding (28+72=100px) */
+  height: calc(100vh - 52px - 100px);
+  min-height: 0;
   border-radius: var(--radius-poster);
   box-shadow: var(--shadow-poster);
   padding: 26px 26px 20px;
   display: flex;
   flex-direction: column;
   gap: 14px;
-  flex-shrink: 0;
+  flex-shrink: 1;
   transition: background 0.3s ease, box-shadow var(--transition);
   position: relative;
 }
@@ -443,7 +442,7 @@ body {
 
 /* ── Settings Panel ──────────────────────────────────────── */
 .settings-panel {
-  width: 400px;
+  width: clamp(300px, 30vw, 400px);
   flex-shrink: 0;
   background: var(--bg-panel);
   border-left: 1px solid var(--border-soft);
@@ -867,6 +866,31 @@ body {
 
 /* Form */
 .form-group { display: flex; flex-direction: column; gap: 5px; }
+.value-reset-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.value-reset-row .form-input { flex: 1; }
+.value-reset-btn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border-input);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: border-color var(--transition), color var(--transition), background var(--transition);
+}
+.value-reset-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-subtle);
+}
 .form-row   { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .form-label {
   font-size: 10.5px;
@@ -1367,6 +1391,30 @@ select.form-input { cursor: pointer; }
 .mobile-bottom-nav { display: none; }
 .sheet-backdrop    { display: none; }
 .sheet-handle-bar  { display: none; }
+
+/* ════════════════════════════════════════════════════
+   MEDIUM SCREENS  (769 px – 1280 px)
+   ════════════════════════════════════════════════════ */
+@media (min-width: 769px) and (max-width: 1280px) {
+  /* Tighten preview padding so poster has more vertical room */
+  .preview-panel {
+    padding: 16px 16px 56px;
+  }
+  /* Reduce internal poster spacing slightly */
+  .poster {
+    padding: 20px 20px 16px;
+    gap: 10px;
+  }
+  /* Tighten settings panel internals */
+  .tab-pane {
+    padding: 12px 10px;
+    gap: 10px;
+  }
+  .card {
+    padding: 12px;
+    gap: 8px;
+  }
+}
 
 /* ════════════════════════════════════════════════════
    MOBILE RESPONSIVE  (≤ 768 px)

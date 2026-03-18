@@ -610,10 +610,26 @@ function computeStats() {
   const dStr = dist.toFixed(1);
   const eStr = Math.round(gain).toString();
 
+  // Store originals for reset
+  window._origDistVal = dStr;
+  window._origElevVal = eStr;
+
   document.getElementById('stat-dist-value').textContent  = dStr;
   document.getElementById('stat-elev-value').textContent  = eStr;
   document.getElementById('inp-dist-val').value           = dStr;
   document.getElementById('inp-elev-val').value           = eStr;
+}
+
+function resetStatVal(type) {
+  if (type === 'dist' && window._origDistVal !== undefined) {
+    const v = window._origDistVal;
+    document.getElementById('inp-dist-val').value = v;
+    syncText('stat-dist-value', v);
+  } else if (type === 'elev' && window._origElevVal !== undefined) {
+    const v = window._origElevVal;
+    document.getElementById('inp-elev-val').value = v;
+    syncText('stat-elev-value', v);
+  }
 }
 
 function totalDistanceKm() {

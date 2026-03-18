@@ -307,18 +307,20 @@
           <div class="card">
             <div class="card-label">Route Style</div>
 
-            <div class="form-group">
-              <label class="form-label">Line Width <span id="width-val">3</span>px</label>
+            <div class="typo-font-header">
+              <span class="form-label">Line Width</span>
               <input type="range" min="1" max="10" value="3" id="route-width"
                 oninput="setRouteWidth(this.value); document.getElementById('width-val').textContent=this.value"
-                class="range-input" />
+                class="range-input range-slim" />
+              <span class="typo-size-badge"><span id="width-val">3</span>px</span>
             </div>
 
-            <div class="form-group">
-              <label class="form-label">Marker Size <span id="marker-size-val">12</span>px</label>
+            <div class="typo-font-header">
+              <span class="form-label">Marker Size</span>
               <input type="range" min="6" max="24" value="12" id="marker-size"
                 oninput="setMarkerSize(this.value); document.getElementById('marker-size-val').textContent=this.value"
-                class="range-input" />
+                class="range-input range-slim" />
+              <span class="typo-size-badge"><span id="marker-size-val">12</span>px</span>
             </div>
 
             <div class="card-divider"></div>
@@ -350,11 +352,12 @@
               </div>
             </div>
 
-            <div class="form-group">
-              <label class="form-label">Gap Size <span id="dash-gap-val">2</span></label>
+            <div class="typo-font-header">
+              <span class="form-label">Gap Size</span>
               <input type="range" min="1" max="10" value="2" id="dash-gap"
-                oninput="setDashGap(this.value)"
-                class="range-input" />
+                oninput="setDashGap(this.value); document.getElementById('dash-gap-val').textContent=this.value"
+                class="range-input range-slim" />
+              <span class="typo-size-badge"><span id="dash-gap-val">2</span></span>
             </div>
           </div>
 
@@ -370,6 +373,16 @@
               <div class="color-dot" style="--c:#1b3a2f;" onclick="setPosterBg('#1b3a2f', this)"></div>
               <div class="color-dot" style="--c:#2c1b0e;" onclick="setPosterBg('#2c1b0e', this)"></div>
               <div class="color-dot" style="--c:#0d1b2a;" onclick="setPosterBg('#0d1b2a', this)"></div>
+            </div>
+            <div class="custom-color-row">
+              <span class="form-label" style="margin:0;">Custom</span>
+              <label class="custom-color-btn">
+                <span class="custom-color-swatch" id="poster-bg-custom-swatch" style="background:#ffffff;"></span>
+                <span class="custom-color-label">Pick color</span>
+                <i data-lucide="pipette" style="width:11px;height:11px;opacity:0.5;"></i>
+                <input type="color" id="poster-bg-custom" value="#ffffff"
+                  oninput="setPosterBg(this.value, null); document.getElementById('poster-bg-custom-swatch').style.background=this.value" />
+              </label>
             </div>
           </div>
 
@@ -410,8 +423,14 @@
             </div>
             <div class="form-group">
               <label class="form-label">Value</label>
-              <input class="form-input" type="text" id="inp-dist-val" value="—"
-                oninput="syncText('stat-dist-value', this.value)" />
+              <div class="value-reset-row">
+                <input class="form-input" type="text" id="inp-dist-val" value="—"
+                  oninput="syncText('stat-dist-value', this.value)" />
+                <button class="value-reset-btn" title="Reset to original GPX value"
+                  onclick="resetStatVal('dist')" tabindex="-1">
+                  <i data-lucide="rotate-ccw" style="width:13px;height:13px;"></i>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -431,8 +450,14 @@
             </div>
             <div class="form-group">
               <label class="form-label">Value</label>
-              <input class="form-input" type="text" id="inp-elev-val" value="—"
-                oninput="syncText('stat-elev-value', this.value)" />
+              <div class="value-reset-row">
+                <input class="form-input" type="text" id="inp-elev-val" value="—"
+                  oninput="syncText('stat-elev-value', this.value)" />
+                <button class="value-reset-btn" title="Reset to original GPX value"
+                  onclick="resetStatVal('elev')" tabindex="-1">
+                  <i data-lucide="rotate-ccw" style="width:13px;height:13px;"></i>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -851,6 +876,18 @@
     if (_origSetPosterSize) _origSetPosterSize(size);
     updatePaperPreview(size);
   };
+
+  function resetStatVal(type) {
+    if (type === 'dist' && window._origDistVal !== undefined) {
+      var v = window._origDistVal;
+      document.getElementById('inp-dist-val').value = v;
+      if (window.syncText) syncText('stat-dist-value', v);
+    } else if (type === 'elev' && window._origElevVal !== undefined) {
+      var v = window._origElevVal;
+      document.getElementById('inp-elev-val').value = v;
+      if (window.syncText) syncText('stat-elev-value', v);
+    }
+  }
 
   document.addEventListener('DOMContentLoaded', function() {
     updatePaperPreview('digital');
