@@ -52,7 +52,7 @@ minify(src, {
       'startEditName','loadFileFromList','deleteFileFromList',
       'toggleTopo','initMap','initElevChart','initDragDrop',
       'mobileTabTap','openSheet','closeSheet','setTitleFont',
-      'filterSizes',
+      'filterSizes','updatePaperPreview',
     ],
   },
   format: {

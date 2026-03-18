@@ -966,6 +966,52 @@ select.form-input { cursor: pointer; }
 }
 [data-theme="dark"] .print-size-item.active { background: var(--accent-subtle); }
 
+/* ── Paper Preview ────────────────────────────────────────── */
+.paper-preview-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  padding: 10px 0 6px;
+  width: 100%;
+}
+.pp-diagram {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  padding: 6px 0 2px;
+}
+.pp-rect {
+  background: var(--bg-input);
+  border: 1.5px solid var(--accent);
+  border-radius: 3px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.06), inset 0 0 0 3px var(--accent-subtle);
+  transition: width 0.3s cubic-bezier(0.4,0,0.2,1),
+              height 0.3s cubic-bezier(0.4,0,0.2,1);
+}
+.pp-bottom-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  margin-top: 10px;
+}
+.pp-rect-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+  text-align: center;
+}
+.pp-rect-dpi {
+  font-size: 10px;
+  color: var(--accent);
+  font-family: 'Inter', system-ui, sans-serif;
+  font-weight: 600;
+  text-align: center;
+}
+
 /* Auto-hide fade-out for upload feedback elements */
 @keyframes fade-out-slide {
   from { opacity: 1; transform: translateY(0); }

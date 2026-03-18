@@ -687,6 +687,20 @@
             </div>
           </div>
 
+          <!-- Paper dimension preview -->
+          <div class="card" id="paper-preview-card">
+            <div class="card-label">Paper Preview</div>
+            <div class="paper-preview-wrap">
+              <div class="pp-diagram">
+                <div class="pp-rect" id="pp-rect"></div>
+              </div>
+              <div class="pp-bottom-info">
+                <span class="pp-rect-name" id="pp-name">Digital</span>
+                <span class="pp-rect-dpi" id="pp-dpi">16 × 24"</span>
+              </div>
+            </div>
+          </div>
+
           <div class="card">
             <div class="card-label">Export Quality</div>
             <div class="form-group">
@@ -771,5 +785,76 @@
 
   <script src="config.js"></script>
   <script src="script.min.js"></script>
+  <script>
+  // ── Size search filter ────────────────────────────────────
+  function filterSizes(q) {
+    q = q.trim().toLowerCase();
+    var items = document.querySelectorAll('.print-size-item[data-size]');
+    var visible = 0;
+    items.forEach(function(item) {
+      var name = item.querySelector('.print-size-name').textContent.toLowerCase();
+      var desc = item.querySelector('.print-size-desc') ? item.querySelector('.print-size-desc').textContent.toLowerCase() : '';
+      var match = !q || name.includes(q) || desc.includes(q);
+      item.style.display = match ? '' : 'none';
+      if (match) visible++;
+    });
+    var nr = document.getElementById('size-no-results');
+    if (nr) nr.style.display = visible === 0 ? '' : 'none';
+  }
+
+  // ── Paper preview ─────────────────────────────────────────
+  // All dimensions in mm. A0 (841×1189) is the reference maximum.
+  // Scale: sqrt(paperH / A0_H) so relative differences are visible but readable.
+  var PAPER_DATA = {
+    'digital':   { name:'Digital',   w:'406 mm', h:'610 mm', inches:'16 × 24"',      wMm:406,  hMm:610  },
+    'small':     { name:'Small',     w:'20 cm',  h:'30 cm',  inches:'8 × 12"',        wMm:200,  hMm:300  },
+    'medium':    { name:'Medium',    w:'30 cm',  h:'45 cm',  inches:'12 × 18"',       wMm:300,  hMm:450  },
+    'large':     { name:'Large',     w:'40 cm',  h:'60 cm',  inches:'16 × 24"',       wMm:400,  hMm:600  },
+    'xlarge':    { name:'X-Large',   w:'50 cm',  h:'75 cm',  inches:'20 × 30"',       wMm:500,  hMm:750  },
+    'a5':        { name:'A5',        w:'148 mm', h:'210 mm', inches:'5.8 × 8.3"',     wMm:148,  hMm:210  },
+    'a4':        { name:'A4',        w:'210 mm', h:'297 mm', inches:'8.3 × 11.7"',    wMm:210,  hMm:297  },
+    'a3':        { name:'A3',        w:'297 mm', h:'420 mm', inches:'11.7 × 16.5"',   wMm:297,  hMm:420  },
+    'a2':        { name:'A2',        w:'420 mm', h:'594 mm', inches:'16.5 × 23.4"',   wMm:420,  hMm:594  },
+    'a1':        { name:'A1',        w:'594 mm', h:'841 mm', inches:'23.4 × 33.1"',   wMm:594,  hMm:841  },
+    'a0':        { name:'A0',        w:'841 mm', h:'1189 mm',inches:'33.1 × 46.8"',   wMm:841,  hMm:1189 },
+    'us-letter': { name:'US Letter', w:'216 mm', h:'279 mm', inches:'8.5 × 11"',      wMm:216,  hMm:279  },
+    'us-legal':  { name:'US Legal',  w:'216 mm', h:'356 mm', inches:'8.5 × 14"',      wMm:216,  hMm:356  },
+    'square-sm': { name:'Square S',  w:'30 cm',  h:'30 cm',  inches:'12 × 12"',       wMm:300,  hMm:300  },
+    'square-lg': { name:'Square L',  w:'50 cm',  h:'50 cm',  inches:'20 × 20"',       wMm:500,  hMm:500  },
+    'panoramic': { name:'Panoramic', w:'30 cm',  h:'90 cm',  inches:'12 × 36"',       wMm:300,  hMm:900  },
+  };
+
+  var PP_REF_H = 1189; // A0 height — the largest, fills the container
+  var PP_MAX_W = 150, PP_MAX_H = 120; // reduced to keep card compact
+
+  function updatePaperPreview(size) {
+    var d = PAPER_DATA[size];
+    if (!d) return;
+    // sqrt scale: keeps relative differences visible, avoids tiny previews
+    var scale = Math.sqrt(d.hMm / PP_REF_H);
+    var rH = Math.round(PP_MAX_H * scale);
+    var rW = Math.round(rH * d.wMm / d.hMm);
+    // Clamp to container
+    if (rW > PP_MAX_W) { rW = PP_MAX_W; rH = Math.round(rW * d.hMm / d.wMm); }
+    if (rH > PP_MAX_H) { rH = PP_MAX_H; rW = Math.round(rH * d.wMm / d.hMm); }
+    // Minimum readable
+    rW = Math.max(rW, 34); rH = Math.max(rH, 28);
+    var rect = document.getElementById('pp-rect');
+    if (rect) { rect.style.width = rW + 'px'; rect.style.height = rH + 'px'; }
+    document.getElementById('pp-name').textContent = d.name;
+    document.getElementById('pp-dpi').textContent  = d.inches;
+  }
+
+  // Patch setPosterSize to also update preview
+  var _origSetPosterSize = window.setPosterSize;
+  window.setPosterSize = function(size) {
+    if (_origSetPosterSize) _origSetPosterSize(size);
+    updatePaperPreview(size);
+  };
+
+  document.addEventListener('DOMContentLoaded', function() {
+    updatePaperPreview('digital');
+  });
+  </script>
 </body>
 </html>
