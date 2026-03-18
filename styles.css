@@ -685,6 +685,28 @@ body {
 /* Swatch preview gradients */
 /* Basemap swatch previews are now real images loaded via Mapbox Static API (see script.js) */
 
+/* Topo overlay toggle row */
+.topo-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.topo-toggle-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.topo-toggle-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+.topo-toggle-sub {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
 /* Color Dots */
 .color-swatches { display: flex; gap: 8px; flex-wrap: wrap; }
 .color-dot {

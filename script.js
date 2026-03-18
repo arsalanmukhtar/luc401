@@ -683,6 +683,49 @@ function syncText(elemId, value) {
   document.getElementById(elemId).textContent = value;
 }
 
+// ── TOPO OVERLAY ──────────────────────────────────────────
+let topoVisible = false;
+
+function addTopoLayer() {
+  // Idempotent — skip if already present
+  if (map.getSource('topo-dem')) return;
+
+  // Mapbox Terrain-DEM v1 — free with existing token
+  map.addSource('topo-dem', {
+    type: 'raster-dem',
+    url: 'mapbox://mapbox.mapbox-terrain-dem-v1',
+    tileSize: 512,
+    maxzoom: 14,
+  });
+
+  // Hillshade renders terrain relief on top of any basemap.
+  // Insert it directly below the route-line layer so the route stays on top.
+  map.addLayer({
+    id: 'topo-hillshade',
+    type: 'hillshade',
+    source: 'topo-dem',
+    layout: { visibility: topoVisible ? 'visible' : 'none' },
+    paint: {
+      'hillshade-shadow-color':        '#3d3020',
+      'hillshade-highlight-color':     '#ffffff',
+      'hillshade-accent-color':        '#5a4a30',
+      'hillshade-exaggeration':        0.45,
+      'hillshade-illumination-anchor': 'viewport',
+    },
+  }, 'route-line'); // always below the route line
+}
+
+function toggleTopo() {
+  topoVisible = !topoVisible;
+  document.getElementById('toggle-topo').classList.toggle('on', topoVisible);
+
+  if (!map.getSource('topo-dem')) {
+    addTopoLayer(); // lazy-add on first enable
+    return;         // addTopoLayer sets visibility from topoVisible
+  }
+  map.setLayoutProperty('topo-hillshade', 'visibility', topoVisible ? 'visible' : 'none');
+}
+
 // ── MAP STYLE ─────────────────────────────────────────────
 function setMapStyle(styleName) {
   document.querySelectorAll('.style-swatch').forEach(s =>
@@ -692,6 +735,8 @@ function setMapStyle(styleName) {
 
   map.once('style.load', () => {
     addRouteSource();
+    // Re-add topo hillshade (setStyle wipes all custom sources/layers)
+    addTopoLayer();
     if (routeCoords.length) {
       map.getSource('route').setData({
         type: 'Feature',
