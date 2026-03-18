@@ -8,3 +8,6 @@ config.js
 *.jpeg
 *.webp
 *.svg
+
+# AI agents cache
+.claude/
