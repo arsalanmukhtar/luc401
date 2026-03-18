@@ -32,6 +32,7 @@ let endMarker      = null;
 let markerSize     = 12;
 let dashGap        = 2;
 let dashPatternKey = 'short';
+let routeWidth     = 3;
 
 // ── PAPER SIZES (mm) ──────────────────────────────────────
 // Used for live aspect-ratio preview and pixel-perfect export.
@@ -318,9 +319,12 @@ function addRouteSource() {
     source: 'route',
     layout: { 'line-join': 'round', 'line-cap': 'round' },
     paint: {
-      'line-color': routeColor,
-      'line-width': 3,
-      'line-opacity': 0.92,
+      'line-color':     routeColor,
+      'line-width':     routeWidth,
+      'line-opacity':   0.92,
+      'line-dasharray': state.isDash
+        ? (DASH_PATTERNS[dashPatternKey] || DASH_PATTERNS['short'])(dashGap)
+        : [1, 0],
     },
   });
 }
@@ -759,6 +763,8 @@ function setMapStyle(styleName) {
   map.setStyle(MAP_STYLES[styleName]);
 
   map.once('style.load', () => {
+    // addRouteSource creates the layer with current routeColor, routeWidth and
+    // dash state, so all style properties are restored automatically.
     addRouteSource();
     // Re-add topo hillshade (setStyle wipes all custom sources/layers)
     addTopoLayer();
@@ -767,7 +773,6 @@ function setMapStyle(styleName) {
         type: 'Feature',
         geometry: { type: 'LineString', coordinates: routeCoords },
       });
-      map.setPaintProperty('route-line', 'line-color', routeColor);
       renderMarkers();
     }
   });
@@ -803,8 +808,9 @@ function setRouteColor(color, el) {
 
 // ── ROUTE WIDTH ───────────────────────────────────────────
 function setRouteWidth(val) {
+  routeWidth = Number(val);
   if (map.getLayer('route-line')) {
-    map.setPaintProperty('route-line', 'line-width', Number(val));
+    map.setPaintProperty('route-line', 'line-width', routeWidth);
   }
 }
 
