@@ -1,0 +1,10 @@
+# secrets — never commit these
+.env
+config.js
+
+# images
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.svg

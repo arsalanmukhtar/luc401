@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Framed Trails — Custom Trail Map Designer</title>
+
+  <!-- Mapbox GL JS -->
+  <link href="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.css" rel="stylesheet" />
+  <script src="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.js"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+
+  <!-- html2canvas -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+  <!-- Inter font (UI only — poster title keeps its own serif/custom font) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Lucide Icons (same icon set as react-icons/lucide-react, web CDN version) -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- Token Warning Banner -->
+  <div class="token-banner" id="token-banner">
+    <i data-lucide="alert-triangle" style="width:16px;height:16px;flex-shrink:0;"></i>
+    <span>Replace <code>YOUR_MAPBOX_TOKEN</code> in script.js with your Mapbox public token to enable the map.</span>
+    <button onclick="document.getElementById('token-banner').style.display='none'">
+      <i data-lucide="x" style="width:14px;height:14px;"></i>
+    </button>
+  </div>
+
+  <!-- Header -->
+  <header class="app-header">
+    <div class="header-brand">
+      <span class="brand-icon"><i data-lucide="mountain-snow" style="width:22px;height:22px;"></i></span>
+      <span class="brand-name">Framed <strong>Trails</strong></span>
+    </div>
+    <div class="header-actions">
+      <span class="header-tagline">Trail Map Print Designer</span>
+      <button class="icon-btn theme-toggle" id="theme-toggle-btn" title="Toggle theme" onclick="toggleTheme()">
+        <i data-lucide="moon" id="theme-icon" style="width:16px;height:16px;"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- App Layout -->
+  <main class="app-main">
+
+    <!-- ===== LEFT: POSTER PREVIEW ===== -->
+    <section class="preview-panel" id="preview-panel">
+      <div class="preview-scroll">
+        <div class="poster" id="poster">
+
+          <!-- Poster Header -->
+          <div class="poster-header">
+            <div class="poster-title" id="poster-title">Trail Name</div>
+            <div class="poster-subtitle" id="poster-subtitle">Location · Date · Adventure</div>
+          </div>
+
+          <!-- Map -->
+          <div class="poster-map" id="poster-map">
+            <div id="map"></div>
+            <div class="map-empty-state" id="map-empty">
+              <i data-lucide="map" style="width:32px;height:32px;opacity:0.3;"></i>
+              <span>Upload a GPX file to plot your route</span>
+            </div>
+          </div>
+
+          <!-- Elevation Profile -->
+          <div class="poster-elevation" id="elevation-container">
+            <canvas id="elevation-chart"></canvas>
+            <div class="elevation-empty" id="elevation-empty">
+              <i data-lucide="trending-up" style="width:14px;height:14px;"></i>
+              Elevation profile appears after GPX upload
+            </div>
+          </div>
+
+          <!-- Start / End Legend -->
+          <div class="poster-legend">
+            <div class="legend-item">
+              <div class="legend-dot legend-dot-start"></div>
+              Start
+            </div>
+            <div class="legend-item">
+              <div class="legend-dot legend-dot-end" id="legend-dot-end"></div>
+              End
+            </div>
+          </div>
+
+          <!-- Stats Row -->
+          <div class="poster-stats">
+            <div class="poster-stat">
+              <span class="stat-label" id="stat-dist-label">Distance</span>
+              <span class="stat-value" id="stat-dist-value">—</span>
+              <span class="stat-unit" id="stat-dist-unit">km</span>
+            </div>
+            <div class="stat-divider"></div>
+            <div class="poster-stat">
+              <span class="stat-label" id="stat-elev-label">Elevation Gain</span>
+              <span class="stat-value" id="stat-elev-value">—</span>
+              <span class="stat-unit" id="stat-elev-unit">m</span>
+            </div>
+          </div>
+
+          <!-- Poster Footer Brand -->
+          <div class="poster-footer-brand">
+            <i data-lucide="mountain-snow" style="width:10px;height:10px;"></i>
+            FRAMED TRAILS
+          </div>
+
+        </div><!-- /poster -->
+      </div>
+    </section>
+
+    <!-- ===== RIGHT: SETTINGS PANEL ===== -->
+    <aside class="settings-panel">
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="route" onclick="switchTab('route')">
+          <i data-lucide="map-pin" style="width:13px;height:13px;"></i> Route
+        </button>
+        <button class="tab-btn" data-tab="style" onclick="switchTab('style')">
+          <i data-lucide="palette" style="width:13px;height:13px;"></i> Style
+        </button>
+        <button class="tab-btn" data-tab="text" onclick="switchTab('text')">
+          <i data-lucide="type" style="width:13px;height:13px;"></i> Text
+        </button>
+        <button class="tab-btn" data-tab="size" onclick="switchTab('size')">
+          <i data-lucide="maximize" style="width:13px;height:13px;"></i> Size
+        </button>
+      </div>
+
+      <!-- Tab Contents -->
+      <div class="tab-contents">
+
+        <!-- ── ROUTE TAB ── -->
+        <div class="tab-pane active" id="pane-route">
+
+          <!-- GPX Upload -->
+          <div class="card">
+            <div class="card-label">GPX Track File</div>
+            <label class="upload-area" id="upload-area" for="gpx-input">
+              <input type="file" accept=".gpx" id="gpx-input" onchange="handleGPXUpload(this)" />
+              <div class="upload-icon"><i data-lucide="upload-cloud" style="width:28px;height:28px;"></i></div>
+              <div class="upload-text">Click or drag a .gpx file</div>
+              <div class="upload-sub">Parses track points client-side — no upload needed</div>
+            </label>
+            <div class="upload-status" id="upload-status"></div>
+          </div>
+
+          <!-- Route Info -->
+          <div class="route-pill" id="route-pill" style="display:none;">
+            <i data-lucide="check-circle-2" style="width:15px;height:15px;flex-shrink:0;"></i>
+            <span id="route-pill-text">Route loaded</span>
+          </div>
+
+          <!-- Map Controls -->
+          <div class="card">
+            <div class="card-label">Map Controls</div>
+            <div class="zoom-row">
+              <button class="zoom-btn" onclick="mapZoom(-1)" title="Zoom out">
+                <i data-lucide="minus" style="width:15px;height:15px;"></i>
+              </button>
+              <span class="zoom-label" id="zoom-label">—</span>
+              <button class="zoom-btn" onclick="mapZoom(1)" title="Zoom in">
+                <i data-lucide="plus" style="width:15px;height:15px;"></i>
+              </button>
+              <button class="fit-btn" onclick="fitToRoute()" title="Fit to route">
+                <i data-lucide="maximize-2" style="width:13px;height:13px;"></i>
+                Fit
+              </button>
+            </div>
+          </div>
+
+          <!-- Overlays -->
+          <div class="card">
+            <div class="card-label">Overlays</div>
+            <div class="toggle-list">
+              <div class="toggle-row">
+                <span class="toggle-label">Start / End Markers</span>
+                <div class="toggle on" id="toggle-markers" onclick="toggleOption('markers')"></div>
+              </div>
+              <div class="toggle-row">
+                <span class="toggle-label">Elevation Profile</span>
+                <div class="toggle on" id="toggle-elevation" onclick="toggleOption('elevation')"></div>
+              </div>
+              <div class="toggle-row">
+                <span class="toggle-label">Poster Branding</span>
+                <div class="toggle on" id="toggle-brand" onclick="toggleOption('brand')"></div>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /route -->
+
+        <!-- ── STYLE TAB ── -->
+        <div class="tab-pane" id="pane-style">
+
+          <!-- Map Style -->
+          <div class="card">
+            <div class="card-label">Map Style</div>
+            <div class="style-grid">
+              <div class="style-swatch active" data-style="streets" onclick="setMapStyle('streets')">
+                <img class="swatch-img" data-mapstyle="streets" alt="Streets" />
+                <span class="swatch-name">Streets v12</span>
+              </div>
+              <div class="style-swatch" data-style="outdoors" onclick="setMapStyle('outdoors')">
+                <img class="swatch-img" data-mapstyle="outdoors" alt="Outdoors" />
+                <span class="swatch-name">Outdoors v12</span>
+              </div>
+              <div class="style-swatch" data-style="light" onclick="setMapStyle('light')">
+                <img class="swatch-img" data-mapstyle="light" alt="Light" />
+                <span class="swatch-name">Light v11</span>
+              </div>
+              <div class="style-swatch" data-style="dark" onclick="setMapStyle('dark')">
+                <img class="swatch-img" data-mapstyle="dark" alt="Dark" />
+                <span class="swatch-name">Dark v11</span>
+              </div>
+              <div class="style-swatch" data-style="satellite" onclick="setMapStyle('satellite')">
+                <img class="swatch-img" data-mapstyle="satellite" alt="Satellite" />
+                <span class="swatch-name">Satellite v9</span>
+              </div>
+              <div class="style-swatch" data-style="satellite-streets" onclick="setMapStyle('satellite-streets')">
+                <img class="swatch-img" data-mapstyle="satellite-streets" alt="Sat. Streets" />
+                <span class="swatch-name">Sat. Streets v12</span>
+              </div>
+              <div class="style-swatch" data-style="nav-day" onclick="setMapStyle('nav-day')">
+                <img class="swatch-img" data-mapstyle="nav-day" alt="Nav Day" />
+                <span class="swatch-name">Nav Day v1</span>
+              </div>
+              <div class="style-swatch" data-style="nav-night" onclick="setMapStyle('nav-night')">
+                <img class="swatch-img" data-mapstyle="nav-night" alt="Nav Night" />
+                <span class="swatch-name">Nav Night v1</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Route Color -->
+          <div class="card">
+            <div class="card-label">Route Color</div>
+            <div class="color-swatches" id="route-color-swatches">
+              <div class="color-dot active" style="--c:#e63946;" onclick="setRouteColor('#e63946', this)"></div>
+              <div class="color-dot" style="--c:#2d6a4f;" onclick="setRouteColor('#2d6a4f', this)"></div>
+              <div class="color-dot" style="--c:#f4a261;" onclick="setRouteColor('#f4a261', this)"></div>
+              <div class="color-dot" style="--c:#457b9d;" onclick="setRouteColor('#457b9d', this)"></div>
+              <div class="color-dot" style="--c:#9b5de5;" onclick="setRouteColor('#9b5de5', this)"></div>
+              <div class="color-dot" style="--c:#f72585;" onclick="setRouteColor('#f72585', this)"></div>
+              <div class="color-dot" style="--c:#ffd166;" onclick="setRouteColor('#ffd166', this)"></div>
+              <div class="color-dot" style="--c:#06d6a0;" onclick="setRouteColor('#06d6a0', this)"></div>
+              <div class="color-dot" style="--c:#fb5607;" onclick="setRouteColor('#fb5607', this)"></div>
+            </div>
+            <div class="custom-color-row">
+              <label class="form-label" style="margin:0;">Custom</label>
+              <input type="color" id="custom-color" value="#e63946" onchange="setRouteColor(this.value, null)" class="color-picker" />
+            </div>
+          </div>
+
+          <!-- Route Style -->
+          <div class="card">
+            <div class="card-label">Route Style</div>
+            <div class="form-group">
+              <label class="form-label">Line Width <span id="width-val">3</span>px</label>
+              <input type="range" min="1" max="10" value="3" id="route-width"
+                oninput="setRouteWidth(this.value); document.getElementById('width-val').textContent=this.value"
+                class="range-input" />
+            </div>
+            <div class="toggle-row" style="margin-top:10px;">
+              <span class="toggle-label">Dashed Line</span>
+              <div class="toggle" id="toggle-dash" onclick="toggleOption('dash')"></div>
+            </div>
+          </div>
+
+          <!-- Poster Background -->
+          <div class="card">
+            <div class="card-label">Poster Background</div>
+            <div class="color-swatches" id="poster-bg-swatches">
+              <div class="color-dot active" style="--c:#ffffff;outline:1px solid #ccc;" onclick="setPosterBg('#ffffff', this)"></div>
+              <div class="color-dot" style="--c:#f8f4ef;" onclick="setPosterBg('#f8f4ef', this)"></div>
+              <div class="color-dot" style="--c:#eef4f0;" onclick="setPosterBg('#eef4f0', this)"></div>
+              <div class="color-dot" style="--c:#f0eee9;" onclick="setPosterBg('#f0eee9', this)"></div>
+              <div class="color-dot" style="--c:#1a1a1a;" onclick="setPosterBg('#1a1a1a', this)"></div>
+              <div class="color-dot" style="--c:#1b3a2f;" onclick="setPosterBg('#1b3a2f', this)"></div>
+              <div class="color-dot" style="--c:#2c1b0e;" onclick="setPosterBg('#2c1b0e', this)"></div>
+              <div class="color-dot" style="--c:#0d1b2a;" onclick="setPosterBg('#0d1b2a', this)"></div>
+            </div>
+          </div>
+
+        </div><!-- /style -->
+
+        <!-- ── TEXT TAB ── -->
+        <div class="tab-pane" id="pane-text">
+
+          <div class="card">
+            <div class="card-label">Poster Title & Subtitle</div>
+            <div class="form-group">
+              <label class="form-label">Title</label>
+              <input class="form-input" type="text" id="inp-title" value="Trail Name"
+                placeholder="e.g. Ben Nevis Summit"
+                oninput="syncText('poster-title', this.value)" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Subtitle</label>
+              <input class="form-input" type="text" id="inp-subtitle" value="Location · Date · Adventure"
+                placeholder="e.g. Lochaber, Scotland · July 2024"
+                oninput="syncText('poster-subtitle', this.value)" />
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-label">Distance Stat</div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Label</label>
+                <input class="form-input" type="text" value="Distance"
+                  oninput="syncText('stat-dist-label', this.value)" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Unit</label>
+                <input class="form-input" type="text" value="km"
+                  oninput="syncText('stat-dist-unit', this.value)" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Value</label>
+              <input class="form-input" type="text" id="inp-dist-val" value="—"
+                oninput="syncText('stat-dist-value', this.value)" />
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-label">Elevation Stat</div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Label</label>
+                <input class="form-input" type="text" value="Elevation Gain"
+                  oninput="syncText('stat-elev-label', this.value)" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Unit</label>
+                <input class="form-input" type="text" value="m"
+                  oninput="syncText('stat-elev-unit', this.value)" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Value</label>
+              <input class="form-input" type="text" id="inp-elev-val" value="—"
+                oninput="syncText('stat-elev-value', this.value)" />
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-label">Typography</div>
+            <div class="form-group">
+              <label class="form-label">Title Font</label>
+              <select class="form-input" onchange="setTitleFont(this.value)">
+                <option value="Georgia, 'Times New Roman', serif">Classic Serif (Georgia)</option>
+                <option value="'Palatino Linotype', Palatino, serif">Palatino</option>
+                <option value="'Book Antiqua', Palatino, serif">Book Antiqua</option>
+                <option value="system-ui, -apple-system, sans-serif">Modern Sans</option>
+                <option value="'Trebuchet MS', sans-serif">Trebuchet</option>
+                <option value="'Courier New', monospace">Monospace</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Title Size <span id="title-size-val">28</span>px</label>
+              <input type="range" min="16" max="52" value="28" class="range-input"
+                oninput="setTitleSize(this.value); document.getElementById('title-size-val').textContent=this.value" />
+            </div>
+          </div>
+
+        </div><!-- /text -->
+
+        <!-- ── SIZE TAB ── -->
+        <div class="tab-pane" id="pane-size">
+
+          <div class="card">
+            <div class="card-label">Print Size</div>
+            <div class="print-size-list">
+
+              <div class="print-size-item active" data-size="digital" onclick="setPosterSize('digital')">
+                <div class="print-size-left">
+                  <span class="print-size-name">Digital</span>
+                  <span class="print-size-desc">High-res digital file (4800×7200px @300 DPI)</span>
+                </div>
+                <span class="print-size-price">€20.00</span>
+              </div>
+
+              <div class="print-size-item" data-size="small" onclick="setPosterSize('small')">
+                <div class="print-size-left">
+                  <span class="print-size-name">Small</span>
+                  <span class="print-size-desc">20×30 cm / 8×12"</span>
+                </div>
+                <span class="print-size-price">€35.00</span>
+              </div>
+
+              <div class="print-size-item" data-size="medium" onclick="setPosterSize('medium')">
+                <div class="print-size-left">
+                  <span class="print-size-name">Medium</span>
+                  <span class="print-size-desc">30×45 cm / 12×18"</span>
+                </div>
+                <span class="print-size-price">€55.00</span>
+              </div>
+
+              <div class="print-size-item" data-size="large" onclick="setPosterSize('large')">
+                <div class="print-size-left">
+                  <span class="print-size-name">Large</span>
+                  <span class="print-size-desc">40×60 cm / 16×24"</span>
+                </div>
+                <span class="print-size-price">€65.00</span>
+              </div>
+
+              <div class="print-size-item" data-size="a4" onclick="setPosterSize('a4')">
+                <div class="print-size-left">
+                  <span class="print-size-name">A4</span>
+                  <span class="print-size-desc">210×297 mm / 8.3×11.7"</span>
+                </div>
+                <span class="print-size-price">€25.00</span>
+              </div>
+
+              <div class="print-size-item" data-size="a3" onclick="setPosterSize('a3')">
+                <div class="print-size-left">
+                  <span class="print-size-name">A3</span>
+                  <span class="print-size-desc">297×420 mm / 11.7×16.5"</span>
+                </div>
+                <span class="print-size-price">€40.00</span>
+              </div>
+
+              <div class="print-size-item" data-size="a2" onclick="setPosterSize('a2')">
+                <div class="print-size-left">
+                  <span class="print-size-name">A2</span>
+                  <span class="print-size-desc">420×594 mm / 16.5×23.4"</span>
+                </div>
+                <span class="print-size-price">€60.00</span>
+              </div>
+
+              <div class="print-size-item" data-size="a1" onclick="setPosterSize('a1')">
+                <div class="print-size-left">
+                  <span class="print-size-name">A1</span>
+                  <span class="print-size-desc">594×841 mm / 23.4×33.1"</span>
+                </div>
+                <span class="print-size-price">€80.00</span>
+              </div>
+
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-label">Export Quality</div>
+            <div class="form-group">
+              <label class="form-label">Resolution Scale</label>
+              <select class="form-input" id="export-scale">
+                <option value="2">2× — Recommended (300 DPI)</option>
+                <option value="3">3× — High Quality (450 DPI)</option>
+                <option value="1">1× — Screen (72 DPI)</option>
+              </select>
+            </div>
+            <p class="hint-text">Higher resolution = larger file size. 2× is ideal for most home printers.</p>
+          </div>
+
+        </div><!-- /size -->
+
+      </div><!-- /tab-contents -->
+
+      <!-- Export Dropdown -->
+      <div class="export-bar">
+        <div class="export-dropdown" id="export-dropdown">
+          <button class="export-trigger" id="export-trigger" onclick="toggleExportMenu()">
+            <div class="export-trigger-left">
+              <i data-lucide="download" style="width:16px;height:16px;"></i>
+              <span>Export graphic</span>
+            </div>
+            <i data-lucide="chevron-down" id="export-chevron" style="width:16px;height:16px;transition:transform 0.2s;"></i>
+          </button>
+          <div class="export-menu" id="export-menu">
+            <div class="export-menu-item" onclick="exportAs('png')">
+              <div class="export-item-info">
+                <span class="export-item-title">PNG</span>
+                <span class="export-item-desc">High quality, lossless image</span>
+              </div>
+            </div>
+            <div class="export-menu-item" onclick="exportAs('jpeg')">
+              <div class="export-item-info">
+                <span class="export-item-title">JPEG</span>
+                <span class="export-item-desc">Smaller file size, compressed</span>
+              </div>
+            </div>
+            <div class="export-menu-divider"></div>
+            <div class="export-menu-item" style="cursor:default;opacity:0.7;">
+              <div class="export-item-info">
+                <span class="export-item-title">SVG</span>
+                <span class="export-item-desc">Scalable vector graphics</span>
+              </div>
+              <div class="export-pro-badge">
+                <i data-lucide="crown" style="width:10px;height:10px;"></i>
+                PRO
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </aside><!-- /settings-panel -->
+
+  </main>
+
+  <script src="config.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
