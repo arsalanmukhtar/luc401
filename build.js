@@ -3,6 +3,21 @@
 // 2. Minifies + mangles script.js → script.min.js so deployed code is unreadable.
 const fs = require('fs');
 
+// ── Load .env file if present (local development only) ────
+// Vercel injects env vars directly; locally we parse .env ourselves.
+if (fs.existsSync('.env')) {
+  fs.readFileSync('.env', 'utf8').split('\n').forEach(line => {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) return;
+    const eqIdx = trimmed.indexOf('=');
+    if (eqIdx < 1) return;
+    const key = trimmed.slice(0, eqIdx).trim();
+    const val = trimmed.slice(eqIdx + 1).trim().replace(/^["']|["']$/g, '');
+    if (!(key in process.env)) process.env[key] = val; // env var takes priority
+  });
+  console.log('[build] .env loaded.');
+}
+
 // ── 1. Token ──────────────────────────────────────────────
 const token = process.env.MAPBOX_TOKEN || '';
 
